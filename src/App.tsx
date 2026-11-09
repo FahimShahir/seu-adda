@@ -130,11 +130,11 @@ export function App() {
     <div className={`relative w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none transition-colors duration-1000 ${
       isNight ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'
     }`}>
-      {/* Hidden YouTube Iframe Audio Host (Zero Spill) */}
+      {/* Hidden YouTube Iframe Audio Host (Zero Spill & Chrome Throttle-Proof) */}
       <div
         ref={containerRef}
         aria-hidden="true"
-        className="fixed bottom-0 right-0 w-0 h-0 overflow-hidden opacity-0 pointer-events-none select-none -z-10"
+        className="fixed bottom-0 right-0 w-4 h-4 opacity-[0.01] pointer-events-none select-none -z-50 overflow-hidden"
       />
 
       {/* Ambient Blurred Widescreen Backdrop (Cleanly Clipped Container) */}

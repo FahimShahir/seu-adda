@@ -116,14 +116,18 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] text-slate-400">উদাহরণ:</span>
             {[
-              { label: '🎸 আবার হাসিমুখ', url: 'https://www.youtube.com/watch?v=sO7zGz-k-4g' },
-              { label: '☕ বৃষ্টি ভেজা সুর', url: 'https://youtu.be/dQw4w9WgXcQ' },
-              { label: '🎧 মেহফিল আড্ডা', url: 'https://www.youtube.com/watch?v=3-J9kXjLqWd' }
+              { label: '🎸 তোমারে দেখিলো', url: 'https://www.youtube.com/watch?v=J8zt4YdRoBI' },
+              { label: '☕ পড়েনা চোখের পলক', url: 'https://www.youtube.com/watch?v=lN4vbH9FGKY' },
+              { label: '❤️ ভালোবাসবো বাসবো রে', url: 'https://www.youtube.com/watch?v=S5gcMwh8ayI' },
+              { label: '🎧 ক্লাসিক পপ', url: 'https://youtu.be/dQw4w9WgXcQ' }
             ].map((ex) => (
               <button
                 type="button"
                 key={ex.label}
-                onClick={() => setCustomInput(ex.url)}
+                onClick={() => {
+                  setCustomInput(ex.url);
+                  setErrorMsg('');
+                }}
                 className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-amber-300/90 border border-white/5 transition"
               >
                 {ex.label}
