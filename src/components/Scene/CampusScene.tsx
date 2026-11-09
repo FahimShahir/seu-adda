@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { CAMPUS_HOTSPOTS, Hotspot, AddaMood, DialogueLine } from '../../data/dialogues';
 import { CharacterBubble } from './CharacterBubble';
+import { LiveRoomSpeechBubble } from './LiveRoomSpeechBubble';
 import { RainCanvas } from './RainCanvas';
 import { Music, Coffee, Lightbulb } from 'lucide-react';
+import { ActiveSpeechBubble, RoomParticipant, CAMPUS_CHARACTERS } from '../../types/room';
 
 interface CampusSceneProps {
   isNight: boolean;
@@ -15,6 +17,11 @@ interface CampusSceneProps {
   onGuitarStrum: () => void;
   onTeaClink: () => void;
   onActiveQuoteChange?: (quote: { speaker: string; text: string }) => void;
+  activeSpeechBubbles?: Record<string, ActiveSpeechBubble>;
+  roomParticipants?: RoomParticipant[];
+  currentUserId?: string;
+  onTransferCharacter?: (charId: string) => void;
+  onCapturePhotoCard?: (speaker: string, text: string) => void;
 }
 
 export const CampusScene: React.FC<CampusSceneProps> = ({
@@ -26,7 +33,12 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   onTogglePlay,
   onGuitarStrum,
   onTeaClink,
-  onActiveQuoteChange
+  onActiveQuoteChange,
+  activeSpeechBubbles,
+  roomParticipants,
+  currentUserId,
+  onTransferCharacter,
+  onCapturePhotoCard
 }) => {
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [conversation, setConversation] = useState<DialogueLine[]>([]);
@@ -56,6 +68,11 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
         speaker: chosenConvo[0].speaker,
         text: chosenConvo[0].text
       });
+    }
+
+    // If in an active room, allow 1-click character transfer to any clicked character
+    if (onTransferCharacter && CAMPUS_CHARACTERS.some((c) => c.id === hotspot.id)) {
+      onTransferCharacter(hotspot.id);
     }
 
     if (hotspot.actionType === 'music') {
@@ -110,6 +127,8 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
         {/* Interactive Hotspot Buttons for Every Member */}
         {CAMPUS_HOTSPOTS.map((hotspot) => {
           const isActive = activeHotspot?.id === hotspot.id;
+          const owner = roomParticipants?.find((p) => p.characterId === hotspot.id);
+          const isMyChar = owner && owner.id === currentUserId;
 
           return (
             <div
@@ -124,11 +143,30 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
               onClick={() => handleHotspotClick(hotspot)}
               title={`${hotspot.groupName} (${hotspot.subName}) — আড্ডা শুনুন`}
             >
+              {/* Floating Room Character Owner Badge */}
+              {owner && (
+                <div
+                  className={`absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shadow-lg flex items-center gap-1 border transition-all z-30 pointer-events-none select-none ${
+                    isMyChar
+                      ? 'bg-amber-500 text-slate-950 border-amber-300 ring-2 ring-amber-400/40 animate-pulse'
+                      : 'bg-slate-900/90 text-emerald-300 border-emerald-400/60'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  <span>{owner.name}</span>
+                  {owner.dept && <span className="opacity-80">[{owner.dept}]</span>}
+                </div>
+              )}
+
               {/* Clickable Area Indicator & Soft Ring */}
               <div
                 className={`w-full h-full rounded-2xl transition-all duration-300 flex items-center justify-center relative ${
                   isActive
                     ? 'ring-2 ring-amber-400 bg-amber-400/30 shadow-lg'
+                    : isMyChar
+                    ? 'ring-2 ring-amber-400/80 bg-amber-400/20'
+                    : owner
+                    ? 'ring-1 ring-emerald-400/70 bg-emerald-400/10'
                     : 'hover:bg-amber-400/20 group-hover:ring-1 group-hover:ring-amber-300/50'
                 }`}
               >
@@ -188,8 +226,25 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
           );
         })}
 
-        {/* Render Active Character Speech Bubble Clamped Safely in Canvas */}
-        {activeHotspot && (
+        {/* Render Active Room Speech Bubbles Floating Over Respective Artwork Characters */}
+        {activeSpeechBubbles &&
+          Object.values(activeSpeechBubbles).map((bubble) => {
+            const charHotspot = CAMPUS_HOTSPOTS.find((h) => h.id === bubble.characterId);
+            if (!charHotspot) return null;
+            return (
+              <LiveRoomSpeechBubble
+                key={bubble.id}
+                bubble={bubble}
+                x={charHotspot.x}
+                y={charHotspot.y}
+                isMine={bubble.senderName === roomParticipants?.find((p) => p.id === currentUserId)?.name}
+                onCapturePhotoCard={onCapturePhotoCard}
+              />
+            );
+          })}
+
+        {/* Render Regular Non-Room Hotspot Dialogues */}
+        {activeHotspot && !activeSpeechBubbles?.[activeHotspot.id] && (
           <CharacterBubble
             hotspot={activeHotspot}
             conversation={conversation}

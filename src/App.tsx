@@ -11,6 +11,7 @@ import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
 import { PhotoCardModal } from './components/Community/PhotoCardModal';
 import { PrivateRoomModal } from './components/Room/PrivateRoomModal';
+import { FloatingRoomChatBar } from './components/Room/FloatingRoomChatBar';
 import { useAddaRoom } from './hooks/useAddaRoom';
 import { AddaMood } from './data/dialogues';
 
@@ -46,8 +47,11 @@ export function App() {
     activeRoom,
     timeRemaining,
     roomError,
+    activeSpeechBubbles,
+    latestSpeech,
     createRoom,
     joinRoom,
+    transferCharacter,
     leaveRoom,
     sendChatMessage,
     setRoomSong
@@ -154,6 +158,14 @@ export function App() {
           onGuitarStrum={playGuitarStrum}
           onTeaClink={playTeaClink}
           onActiveQuoteChange={setActiveQuote}
+          activeSpeechBubbles={activeSpeechBubbles}
+          roomParticipants={activeRoom?.participants}
+          currentUserId={currentUser.id}
+          onTransferCharacter={transferCharacter}
+          onCapturePhotoCard={(speaker, text) => {
+            setActiveQuote({ speaker, text });
+            setIsPhotoCardOpen(true);
+          }}
         />
 
         {/* Floating Top Header Navigation with Integrated Mood Selector & Live Dhaka Weather */}
@@ -169,10 +181,27 @@ export function App() {
           onToggleNight={handleToggleNight}
           onToggleRain={handleToggleRain}
           onOpenConfessions={() => setIsConfessionOpen(true)}
-          onOpenPhotoCard={() => setIsPhotoCardOpen(true)}
+          onOpenPhotoCard={() => {
+            if (latestSpeech) setActiveQuote(latestSpeech);
+            setIsPhotoCardOpen(true);
+          }}
           onOpenRoom={() => setIsRoomOpen(true)}
           onCheers={handleCheers}
         />
+
+        {/* On-Screen Floating Room Chat Bar (Directly on Main Screen!) */}
+        {activeRoom && (
+          <FloatingRoomChatBar
+            myCharacterId={currentUser.characterId}
+            participants={activeRoom.participants}
+            onSendMessage={sendChatMessage}
+            onTransferCharacter={transferCharacter}
+            onOpenPhotoCard={() => {
+              if (latestSpeech) setActiveQuote(latestSpeech);
+              setIsPhotoCardOpen(true);
+            }}
+          />
+        )}
 
         {/* Floating Bottom Audio Player Capsule Directly Over Artwork Grass */}
         <PlayerControls
@@ -220,7 +249,7 @@ export function App() {
         currentSongTitle={playerState.currentTitle}
         currentAuthor={playerState.currentAuthor}
         dhakaTime={dhakaTime}
-        activeQuote={activeQuote}
+        activeQuote={latestSpeech || activeQuote}
       />
 
       {/* Ephemeral 2-Hour Private Adda Room Modal */}
@@ -231,10 +260,13 @@ export function App() {
         timeRemaining={timeRemaining}
         roomError={roomError}
         currentUser={currentUser}
-        onCreateRoom={(title, name, dept) => createRoom(title, name, dept)}
-        onJoinRoom={(id, name, dept) => joinRoom(id, name, dept)}
+        onCreateRoom={(title, name, dept, gender, charId) =>
+          createRoom(title, name, dept, gender, charId)
+        }
+        onJoinRoom={(id, name, dept, gender, charId) =>
+          joinRoom(id, name, dept, gender, charId)
+        }
         onLeaveRoom={leaveRoom}
-        onSendMessage={sendChatMessage}
         onSetRoomSong={setRoomSong}
         initialRoomId={pendingJoinRoomId}
       />

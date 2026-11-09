@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import mqtt, { MqttClient } from 'mqtt';
-import { AddaRoom, ChatMessage, RoomParticipant, RoomSong, RoomSyncEvent } from '../types/room';
+import {
+  AddaRoom,
+  ChatMessage,
+  RoomParticipant,
+  RoomSong,
+  RoomSyncEvent,
+  ActiveSpeechBubble,
+  CAMPUS_CHARACTERS
+} from '../types/room';
 
 const MQTT_BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
 const ROOM_STORAGE_PREFIX = 'seu_adda_room_';
@@ -10,7 +18,7 @@ export function toBengaliNumber(num: number): string {
   return num
     .toString()
     .split('')
-    .map(digit => (digit >= '0' && digit <= '9' ? bengaliDigits[parseInt(digit, 10)] : digit))
+    .map((digit) => (digit >= '0' && digit <= '9' ? bengaliDigits[parseInt(digit, 10)] : digit))
     .join('');
 }
 
@@ -23,11 +31,13 @@ export function formatTimeRemaining(ms: number): string {
 
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
   const formatted = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  return toBengaliNumber(parseInt(formatted.slice(0, 2), 10)) +
+  return (
+    toBengaliNumber(parseInt(formatted.slice(0, 2), 10)) +
     ':' +
     toBengaliNumber(parseInt(formatted.slice(3, 5), 10)) +
     ':' +
-    toBengaliNumber(parseInt(formatted.slice(6, 8), 10));
+    toBengaliNumber(parseInt(formatted.slice(6, 8), 10))
+  );
 }
 
 export function generateRoomId(): string {
@@ -40,20 +50,32 @@ export function generateRoomId(): string {
 }
 
 export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
-  // Current user info
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; dept: string }>(() => {
+  // Current user info (name, dept, gender, claimed characterId)
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    dept: string;
+    gender: 'male' | 'female';
+    characterId: string;
+  }>(() => {
     try {
       const saved = localStorage.getItem('seu_room_user');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
     const newId = 'user_' + Math.random().toString(36).substring(2, 9);
-    return { id: newId, name: '', dept: 'CSE' };
+    return { id: newId, name: '', dept: 'CSE', gender: 'male', characterId: 'guitarist' };
   });
 
   const [activeRoom, setActiveRoom] = useState<AddaRoom | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('০২:০০:০০');
   const [roomError, setRoomError] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // Active floating speech bubbles map: characterId -> ActiveSpeechBubble
+  const [activeSpeechBubbles, setActiveSpeechBubbles] = useState<Record<string, ActiveSpeechBubble>>({});
+  
+  // Latest speech for Photo Card auto-prefill
+  const [latestSpeech, setLatestSpeech] = useState<{ speaker: string; text: string } | null>(null);
 
   const activeRoomRef = useRef<AddaRoom | null>(null);
   activeRoomRef.current = activeRoom;
@@ -62,26 +84,33 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
   const mqttClientRef = useRef<MqttClient | null>(null);
 
   // Save current user to local storage whenever updated
-  const saveCurrentUser = useCallback((name: string, dept: string) => {
-    setCurrentUser(prev => {
-      const updated = { ...prev, name: name.trim(), dept: dept.trim() || 'CSE' };
-      try {
-        localStorage.setItem('seu_room_user', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-  }, []);
+  const saveCurrentUser = useCallback(
+    (name: string, dept: string, gender: 'male' | 'female', characterId: string) => {
+      setCurrentUser((prev) => {
+        const updated = {
+          ...prev,
+          name: name.trim(),
+          dept: dept.trim() || 'CSE',
+          gender,
+          characterId
+        };
+        try {
+          localStorage.setItem('seu_room_user', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+    },
+    []
+  );
 
   // Dispatch event over both BroadcastChannel (cross-tab) and MQTT WSS (cross-device)
   const dispatchRoomEvent = useCallback((event: RoomSyncEvent) => {
-    // 1. BroadcastChannel (Local Tabs)
     try {
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.postMessage(event);
       }
     } catch (e) {}
 
-    // 2. MQTT (Internet Devices)
     try {
       if (mqttClientRef.current && mqttClientRef.current.connected) {
         const topic = `seu-adda/rooms/${event.roomId}`;
@@ -92,7 +121,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
   // Update room in state and local storage
   const updateRoomState = useCallback((updater: (prev: AddaRoom | null) => AddaRoom | null) => {
-    setActiveRoom(prev => {
+    setActiveRoom((prev) => {
       const next = updater(prev);
       if (next) {
         try {
@@ -100,6 +129,32 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         } catch (e) {}
       }
       return next;
+    });
+  }, []);
+
+  // Show a speech bubble over a specific character
+  const triggerSpeechBubble = useCallback((msg: ChatMessage) => {
+    if (!msg.characterId || msg.isSystem) return;
+
+    const expiresAt = Date.now() + 10000; // 10 seconds duration
+    const bubble: ActiveSpeechBubble = {
+      id: msg.id,
+      characterId: msg.characterId,
+      senderName: msg.senderName,
+      senderDept: msg.senderDept,
+      text: msg.text,
+      timestamp: msg.timestamp,
+      expiresAt
+    };
+
+    setActiveSpeechBubbles((prev) => ({
+      ...prev,
+      [msg.characterId]: bubble
+    }));
+
+    setLatestSpeech({
+      speaker: `${msg.senderName}${msg.senderDept ? ` (${msg.senderDept})` : ''}`,
+      text: msg.text
     });
   }, []);
 
@@ -115,6 +170,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       if (event.type === 'ROOM_DESTROYED') {
         if (current && current.id === event.roomId) {
           setActiveRoom(null);
+          setActiveSpeechBubbles({});
           setRoomError('⚠️ রুমে আর কেউ না থাকায় বা মেয়াদ শেষ হওয়ায় রুমটি মুছে গেছে।');
           try {
             localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${event.roomId}`);
@@ -127,19 +183,35 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       if (event.type === 'ROOM_CHAT_MESSAGE') {
         if (current && current.id === event.roomId) {
           const msg = event.payload as ChatMessage;
-          updateRoomState(prev => {
+          updateRoomState((prev) => {
             if (!prev) return null;
-            if (prev.messages.some(m => m.id === msg.id)) return prev;
+            if (prev.messages.some((m) => m.id === msg.id)) return prev;
             return {
               ...prev,
               messages: [...prev.messages, msg]
+            };
+          });
+
+          // Trigger on-screen speech bubble for that character
+          triggerSpeechBubble(msg);
+        }
+      } else if (event.type === 'ROOM_CHARACTER_TRANSFER') {
+        if (current && current.id === event.roomId) {
+          const { participantId, newCharacterId } = event.payload;
+          updateRoomState((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              participants: prev.participants.map((p) =>
+                p.id === participantId ? { ...p, characterId: newCharacterId, lastSeen: Date.now() } : p
+              )
             };
           });
         }
       } else if (event.type === 'ROOM_SONG_CHANGE') {
         if (current && current.id === event.roomId) {
           const newSong = event.payload as RoomSong;
-          updateRoomState(prev => (prev ? { ...prev, currentSong: newSong } : null));
+          updateRoomState((prev) => (prev ? { ...prev, currentSong: newSong } : null));
           if (newSong && newSong.source && onRoomSongChange) {
             onRoomSongChange(newSong.source);
           }
@@ -148,18 +220,19 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         if (current && current.id === event.roomId) {
           const newParticipant = event.payload.participant as RoomParticipant;
           const joinMsg = event.payload.systemMessage as ChatMessage;
-          updateRoomState(prev => {
+          updateRoomState((prev) => {
             if (!prev) return null;
-            const exists = prev.participants.some(p => p.id === newParticipant.id);
+            const exists = prev.participants.some((p) => p.id === newParticipant.id);
             const updatedParticipants = exists
-              ? prev.participants.map(p =>
+              ? prev.participants.map((p) =>
                   p.id === newParticipant.id ? { ...p, lastSeen: Date.now() } : p
                 )
               : [...prev.participants, newParticipant];
 
-            const updatedMessages = joinMsg && !prev.messages.some(m => m.id === joinMsg.id)
-              ? [...prev.messages, joinMsg]
-              : prev.messages;
+            const updatedMessages =
+              joinMsg && !prev.messages.some((m) => m.id === joinMsg.id)
+                ? [...prev.messages, joinMsg]
+                : prev.messages;
 
             return {
               ...prev,
@@ -168,7 +241,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             };
           });
 
-          // Respond with current room state so new participant syncs immediately
+          // Respond with current room state
           dispatchRoomEvent({
             type: 'ROOM_SYNC_RESPONSE',
             roomId: event.roomId,
@@ -180,9 +253,9 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       } else if (event.type === 'ROOM_LEAVE') {
         if (current && current.id === event.roomId) {
           const { participantId, systemMessage } = event.payload;
-          updateRoomState(prev => {
+          updateRoomState((prev) => {
             if (!prev) return null;
-            const updatedParticipants = prev.participants.filter(p => p.id !== participantId);
+            const updatedParticipants = prev.participants.filter((p) => p.id !== participantId);
             return {
               ...prev,
               participants: updatedParticipants,
@@ -193,11 +266,11 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       } else if (event.type === 'ROOM_HEARTBEAT') {
         if (current && current.id === event.roomId) {
           const participantId = event.payload.participantId;
-          updateRoomState(prev => {
+          updateRoomState((prev) => {
             if (!prev) return null;
             return {
               ...prev,
-              participants: prev.participants.map(p =>
+              participants: prev.participants.map((p) =>
                 p.id === participantId ? { ...p, lastSeen: Date.now() } : p
               )
             };
@@ -206,12 +279,11 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       } else if (event.type === 'ROOM_SYNC_RESPONSE') {
         const syncedRoom = event.payload as AddaRoom;
         if (syncedRoom && syncedRoom.id === event.roomId) {
-          updateRoomState(prev => {
+          updateRoomState((prev) => {
             if (!prev) return syncedRoom;
-            // Merge messages without duplicates
             const allMsgs = [...prev.messages];
             for (const sm of syncedRoom.messages) {
-              if (!allMsgs.some(m => m.id === sm.id)) {
+              if (!allMsgs.some((m) => m.id === sm.id)) {
                 allMsgs.push(sm);
               }
             }
@@ -223,7 +295,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         }
       }
     },
-    [currentUser.id, dispatchRoomEvent, onRoomSongChange, updateRoomState]
+    [currentUser.id, dispatchRoomEvent, onRoomSongChange, triggerSpeechBubble, updateRoomState]
   );
 
   // Setup BroadcastChannel (Local Tabs)
@@ -289,7 +361,28 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     };
   }, [activeRoom?.id, currentUser.id, handleIncomingEvent]);
 
-  // 2-Hour TTL Countdown Timer & Expiration Handler (runs every second)
+  // Speech Bubble Cleanup Timer (every 1 second)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setActiveSpeechBubbles((prev) => {
+        let changed = false;
+        const next: Record<string, ActiveSpeechBubble> = {};
+        for (const [charId, bubble] of Object.entries(prev)) {
+          if (now < bubble.expiresAt) {
+            next[charId] = bubble;
+          } else {
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 2-Hour TTL Countdown Timer & Expiration Handler
   useEffect(() => {
     if (!activeRoom) return;
 
@@ -301,7 +394,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const remainingMs = current.expiresAt - now;
 
       if (remainingMs <= 0) {
-        // Room 2-hour duration has expired!
         clearInterval(interval);
         dispatchRoomEvent({
           type: 'ROOM_DESTROYED',
@@ -311,6 +403,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           timestamp: now
         });
         setActiveRoom(null);
+        setActiveSpeechBubbles({});
         setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়েছে! রুমটি স্বয়ংক্রিয়ভাবে বন্ধ করা হয়েছে।');
         try {
           localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${current.id}`);
@@ -324,7 +417,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     return () => clearInterval(interval);
   }, [activeRoom, currentUser.id, dispatchRoomEvent]);
 
-  // Heartbeat & Empty Room Cleanup (runs every 10 seconds)
+  // Heartbeat & Empty Room Cleanup (runs every 9 seconds)
   useEffect(() => {
     if (!activeRoom) return;
 
@@ -344,13 +437,12 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       });
 
       // Filter out participants inactive for > 28 seconds
-      updateRoomState(prev => {
+      updateRoomState((prev) => {
         if (!prev) return null;
         const activeParticipants = prev.participants.filter(
-          p => p.id === currentUser.id || now - p.lastSeen < 28000
+          (p) => p.id === currentUser.id || now - p.lastSeen < 28000
         );
 
-        // If everyone left (participants is 0 or only disconnected ghosts)
         if (activeParticipants.length === 0) {
           try {
             localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${prev.id}`);
@@ -368,34 +460,15 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     return () => clearInterval(interval);
   }, [activeRoom, currentUser.id, dispatchRoomEvent, updateRoomState]);
 
-  // Check URL on load for ?room=ROOM_ID or #room=ROOM_ID
-  useEffect(() => {
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      let queryRoom = searchParams.get('room');
-      if (!queryRoom && window.location.hash.includes('room=')) {
-        const hashMatch = window.location.hash.match(/room=([a-zA-Z0-9_-]+)/);
-        if (hashMatch) queryRoom = hashMatch[1];
-      }
-
-      if (queryRoom) {
-        const cleanedId = queryRoom.trim().toUpperCase();
-        // Check if we have room in localStorage
-        const saved = localStorage.getItem(`${ROOM_STORAGE_PREFIX}${cleanedId}`);
-        if (saved) {
-          const parsed = JSON.parse(saved) as AddaRoom;
-          if (Date.now() < parsed.expiresAt) {
-            // Room is still valid
-            setActiveRoom(parsed);
-          }
-        }
-      }
-    } catch (e) {}
-  }, []);
-
-  // 1. Create a New Room (2 Hours Lifespan)
+  // 1. Create a New Room (with gender & initial character selection)
   const createRoom = useCallback(
-    (roomTitle: string, hostName: string, hostDept: string): string => {
+    (
+      roomTitle: string,
+      hostName: string,
+      hostDept: string,
+      gender: 'male' | 'female' = 'male',
+      characterId?: string
+    ): string => {
       setIsConnecting(true);
       setRoomError('');
 
@@ -403,7 +476,11 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const cleanDept = hostDept.trim() || 'CSE';
       const cleanTitle = roomTitle.trim() || 'সাউথইস্ট আড্ডা রুম';
 
-      saveCurrentUser(cleanHostName, cleanDept);
+      // Default character assignment
+      const finalCharId =
+        characterId || (gender === 'female' ? 'green_saree_girl' : 'guitarist');
+
+      saveCurrentUser(cleanHostName, cleanDept, gender, finalCharId);
 
       const roomId = generateRoomId();
       const now = Date.now();
@@ -413,15 +490,19 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         id: currentUser.id,
         name: cleanHostName,
         dept: cleanDept,
+        gender,
+        characterId: finalCharId,
         joinedAt: now,
         lastSeen: now
       };
 
+      const charObj = CAMPUS_CHARACTERS.find((c) => c.id === finalCharId);
       const welcomeMsg: ChatMessage = {
         id: `sys_${now}`,
         senderId: 'system',
         senderName: 'SEU Adda সিস্টেম',
-        text: `সাউথইস্ট আড্ডা রুমে স্বাগতম! 🎉 এই রুমটির মেয়াদ ঠিক ২ ঘণ্টা। রুম আইডি বা ইনভাইট লিংক শেয়ার করে বন্ধুদের সাথে গান শুনুন ও চ্যাট করুন ☕🎶`,
+        characterId: finalCharId,
+        text: `সাউথইস্ট আড্ডা রুমে স্বাগতম! 🎉 ${cleanHostName} (${charObj?.name || 'হোস্ট'}) হিসেবে আড্ডা শুরু করেছেন। ২ ঘণ্টা আড্ডা দিন! ☕🎶`,
         timestamp: 'এইমাত্র',
         isSystem: true
       };
@@ -458,9 +539,15 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     [currentUser.id, dispatchRoomEvent, saveCurrentUser]
   );
 
-  // 2. Join an Existing Room
+  // 2. Join an Existing Room (with gender & character selection)
   const joinRoom = useCallback(
-    (roomIdInput: string, userName: string, userDept: string): boolean => {
+    (
+      roomIdInput: string,
+      userName: string,
+      userDept: string,
+      gender: 'male' | 'female' = 'male',
+      characterId?: string
+    ): boolean => {
       const cleanedId = roomIdInput.trim().toUpperCase();
       if (!cleanedId) {
         setRoomError('অনুগ্রহ করে রুম আইডি লিখুন');
@@ -469,7 +556,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       const cleanName = userName.trim() || 'আড্ডাবাজ বন্ধু';
       const cleanDept = userDept.trim() || 'CSE';
-      saveCurrentUser(cleanName, cleanDept);
 
       setRoomError('');
       setIsConnecting(true);
@@ -484,9 +570,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         }
       } catch (e) {}
 
-      // If room not in localStorage, synthesize a joined state and request sync from peer
       if (!targetRoom) {
-        // If room is completely unknown locally, we can create a temporary room shell and request state sync
         targetRoom = {
           id: cleanedId,
           name: `আড্ডা রুম ${cleanedId}`,
@@ -499,7 +583,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         };
       }
 
-      // Check if room has expired
       if (now >= targetRoom.expiresAt) {
         setRoomError('⚠️ এই রুমটির ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে। নতুন রুম তৈরি করুন।');
         setIsConnecting(false);
@@ -509,26 +592,41 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         return false;
       }
 
+      // Find best available character for this user
+      let assignedCharId = characterId;
+      if (!assignedCharId) {
+        const takenCharIds = targetRoom.participants.map((p) => p.characterId);
+        const candidates = CAMPUS_CHARACTERS.filter((c) => c.gender === gender);
+        const free = candidates.find((c) => !takenCharIds.includes(c.id));
+        assignedCharId = free ? free.id : candidates[0].id;
+      }
+
+      saveCurrentUser(cleanName, cleanDept, gender, assignedCharId);
+
       const newParticipant: RoomParticipant = {
         id: currentUser.id,
         name: cleanName,
         dept: cleanDept,
+        gender,
+        characterId: assignedCharId,
         joinedAt: now,
         lastSeen: now
       };
 
+      const charObj = CAMPUS_CHARACTERS.find((c) => c.id === assignedCharId);
       const joinMsg: ChatMessage = {
         id: `sys_join_${now}_${currentUser.id}`,
         senderId: 'system',
         senderName: 'SEU Adda সিস্টেম',
-        text: `☕ ${cleanName} (${cleanDept}) আড্ডায় যোগ দিয়েছেন!`,
+        characterId: assignedCharId,
+        text: `☕ ${cleanName} (${cleanDept}) "${charObj?.name || 'বন্ধু'}" হিসেবে আড্ডায় যোগ দিয়েছেন!`,
         timestamp: 'এইমাত্র',
         isSystem: true
       };
 
-      const updatedParticipants = targetRoom.participants.some(p => p.id === currentUser.id)
-        ? targetRoom.participants.map(p =>
-            p.id === currentUser.id ? { ...p, lastSeen: now } : p
+      const updatedParticipants = targetRoom.participants.some((p) => p.id === currentUser.id)
+        ? targetRoom.participants.map((p) =>
+            p.id === currentUser.id ? { ...p, characterId: assignedCharId, lastSeen: now } : p
           )
         : [...targetRoom.participants, newParticipant];
 
@@ -559,25 +657,57 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     [currentUser.id, dispatchRoomEvent, saveCurrentUser]
   );
 
-  // 3. Leave Room (Auto-delete if last person leaves)
+  // 3. Transfer / Switch to Another Character
+  const transferCharacter = useCallback(
+    (newCharacterId: string) => {
+      const current = activeRoomRef.current;
+      if (!current) return;
+
+      const charObj = CAMPUS_CHARACTERS.find((c) => c.id === newCharacterId);
+      if (!charObj) return;
+
+      saveCurrentUser(currentUser.name, currentUser.dept, charObj.gender, newCharacterId);
+
+      updateRoomState((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          participants: prev.participants.map((p) =>
+            p.id === currentUser.id ? { ...p, characterId: newCharacterId, gender: charObj.gender } : p
+          )
+        };
+      });
+
+      dispatchRoomEvent({
+        type: 'ROOM_CHARACTER_TRANSFER',
+        roomId: current.id,
+        senderId: currentUser.id,
+        payload: { participantId: currentUser.id, newCharacterId },
+        timestamp: Date.now()
+      });
+    },
+    [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, saveCurrentUser, updateRoomState]
+  );
+
+  // 4. Leave Room
   const leaveRoom = useCallback(() => {
     const current = activeRoomRef.current;
     if (!current) return;
 
     const now = Date.now();
-    const remaining = current.participants.filter(p => p.id !== currentUser.id);
+    const remaining = current.participants.filter((p) => p.id !== currentUser.id);
 
     const leaveMsg: ChatMessage = {
       id: `sys_leave_${now}_${currentUser.id}`,
       senderId: 'system',
       senderName: 'SEU Adda সিস্টেম',
+      characterId: currentUser.characterId,
       text: `👋 ${currentUser.name || 'একজন বন্ধু'} রুম ত্যাগ করেছেন।`,
       timestamp: 'এইমাত্র',
       isSystem: true
     };
 
     if (remaining.length === 0) {
-      // Room is now empty! Auto delete immediately!
       try {
         localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${current.id}`);
       } catch (e) {}
@@ -589,7 +719,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: now
       });
     } else {
-      // Other participants remain
       const updatedRoom: AddaRoom = {
         ...current,
         participants: remaining,
@@ -608,12 +737,13 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     }
 
     setActiveRoom(null);
+    setActiveSpeechBubbles({});
     try {
       window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {}
-  }, [currentUser.id, currentUser.name, dispatchRoomEvent]);
+  }, [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent]);
 
-  // 4. Send Chat Message
+  // 5. Send Chat Message (Trigger speech bubble over my character)
   const sendChatMessage = useCallback(
     (text: string) => {
       const current = activeRoomRef.current;
@@ -634,11 +764,15 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         senderId: currentUser.id,
         senderName: currentUser.name || 'ক্যাম্পাস আড্ডাবাজ',
         senderDept: currentUser.dept || 'CSE',
+        characterId: currentUser.characterId,
         text: trimmed,
         timestamp: formattedTime
       };
 
-      updateRoomState(prev => (prev ? { ...prev, messages: [...prev.messages, newMsg] } : null));
+      updateRoomState((prev) => (prev ? { ...prev, messages: [...prev.messages, newMsg] } : null));
+
+      // Trigger local speech bubble immediately
+      triggerSpeechBubble(newMsg);
 
       dispatchRoomEvent({
         type: 'ROOM_CHAT_MESSAGE',
@@ -648,10 +782,10 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: Date.now()
       });
     },
-    [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, updateRoomState]
+    [currentUser.characterId, currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, triggerSpeechBubble, updateRoomState]
   );
 
-  // 5. Broadcast Room Song Change (Synchronized playback for everyone in the room)
+  // 6. Broadcast Room Song Change
   const setRoomSong = useCallback(
     (title: string, author: string, source: string) => {
       const current = activeRoomRef.current;
@@ -668,12 +802,13 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         id: `song_${Date.now()}`,
         senderId: 'system',
         senderName: 'SEU Adda রেডিও',
+        characterId: currentUser.characterId,
         text: `🎶 ${currentUser.name || 'বন্ধু'} নতুন গান চালু করেছেন: "${title}"`,
         timestamp: 'এইমাত্র',
         isSystem: true
       };
 
-      updateRoomState(prev =>
+      updateRoomState((prev) =>
         prev
           ? {
               ...prev,
@@ -695,7 +830,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         onRoomSongChange(source);
       }
     },
-    [currentUser.id, currentUser.name, dispatchRoomEvent, onRoomSongChange, updateRoomState]
+    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, onRoomSongChange, updateRoomState]
   );
 
   return {
@@ -706,8 +841,11 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     roomError,
     setRoomError,
     isConnecting,
+    activeSpeechBubbles,
+    latestSpeech,
     createRoom,
     joinRoom,
+    transferCharacter,
     leaveRoom,
     sendChatMessage,
     setRoomSong
