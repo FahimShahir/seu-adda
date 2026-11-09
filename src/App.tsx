@@ -127,26 +127,35 @@ export function App() {
   };
 
   return (
-    <div className={`relative w-screen h-[100dvh] overflow-hidden select-none transition-colors duration-1000 ${
+    <div className={`relative w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none transition-colors duration-1000 ${
       isNight ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'
     }`}>
-      {/* Hidden YouTube Iframe Audio Host */}
+      {/* Hidden YouTube Iframe Audio Host (Zero Spill) */}
       <div
         ref={containerRef}
         aria-hidden="true"
-        className="fixed bottom-0 right-0 w-2 h-2 opacity-[0.01] pointer-events-none z-0 overflow-hidden"
+        className="fixed bottom-0 right-0 w-0 h-0 overflow-hidden opacity-0 pointer-events-none select-none -z-10"
       />
 
-      {/* Ambient Blurred Widescreen Backdrop (Fills PC Monitors Seamlessly Edge-to-Edge) */}
-      <img
-        src={isNight ? "./images/campus-night.jpg" : "./images/campus-day.jpg"}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover filter blur-3xl scale-125 opacity-35 pointer-events-none select-none transition-all duration-1000"
-      />
+      {/* Ambient Blurred Widescreen Backdrop (Cleanly Clipped Container) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <img
+          src={isNight ? "./images/campus-night.jpg" : "./images/campus-day.jpg"}
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover filter blur-3xl scale-110 opacity-35 select-none transition-all duration-1000"
+        />
+      </div>
 
-      {/* Central Sharp Artwork Frame with Overlaid Controls (No Overlaps, Zero Black Gaps) */}
-      <main className="relative h-full aspect-[686/1024] max-w-full mx-auto flex items-center justify-center shadow-2xl touch-manipulation select-none overflow-hidden">
+      {/* Central Sharp Artwork Frame (Aspect-Ratio Fitted: 100% Image Visible On All Devices, Zero Cropping) */}
+      <main
+        style={{
+          width: 'min(100vw, calc(100dvh * 686 / 1024))',
+          height: 'min(100dvh, calc(100vw * 1024 / 686))',
+          aspectRatio: '686 / 1024'
+        }}
+        className="relative mx-auto my-auto flex items-center justify-center shadow-2xl touch-manipulation select-none overflow-hidden shrink-0"
+      >
         {/* Interactive Campus Scene with Hotspots & Dialogues */}
         <CampusScene
           isNight={isNight}

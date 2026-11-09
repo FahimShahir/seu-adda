@@ -375,7 +375,7 @@ export const CAMPUS_CHARACTERS: CampusCharacter[] = [
     role: 'করিডোরে হেঁটে যাওয়া ছাত্র ১',
     emoji: '⏰',
     zone: 'background',
-    x: 95.5,
+    x: 93.5,
     y: 61.5
   },
   {
@@ -385,7 +385,7 @@ export const CAMPUS_CHARACTERS: CampusCharacter[] = [
     role: 'করিডোরে হেঁটে যাওয়া ছাত্র ২',
     emoji: '🏃',
     zone: 'background',
-    x: 98.5,
+    x: 96.5,
     y: 61.5
   }
 ];

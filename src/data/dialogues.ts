@@ -1332,9 +1332,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     tagline: 'কুড়িল বিশ্বরোডের জ্যামে ২ ঘণ্টা আটকায়া আছিলাম!',
     emoji: '⏰',
     zone: 'background',
-    x: 95.5,
+    x: 93.5,
     y: 61.5,
-    width: 4.5,
+    width: 4.0,
     height: 7,
     actionType: 'dialogue',
     dialogues: {
@@ -1370,9 +1370,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     tagline: 'মামা বাঁচায়া দিলি! রোল কল হওয়ার আগেই ঢুকতে পারলাম!',
     emoji: '🏃',
     zone: 'background',
-    x: 98.5,
+    x: 96.5,
     y: 61.5,
-    width: 4.5,
+    width: 4.0,
     height: 7,
     actionType: 'dialogue',
     dialogues: {
