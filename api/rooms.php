@@ -193,16 +193,51 @@ switch ($action) {
             jsonResponse(['error' => 'রুম পাওয়া যায়নি বা মেয়াদোত্তীর্ণ'], 404);
         }
 
-        // Check if character is claimed by someone else
-        $cStmt = $pdo->prepare("SELECT name FROM participants WHERE room_id = :room_id AND character_id = :char_id AND id != :my_id");
-        $cStmt->execute([':room_id' => $roomId, ':char_id' => $characterId, ':my_id' => $userId]);
-        $occupied = $cStmt->fetch();
+        // 35 Campus Characters categorized by gender for 1-to-1 unique assignment
+        $maleChars = [
+            'guitarist', 'standing_boy_1', 'front_blue_guy', 'white_panjabi_guy',
+            'plaid_shirt_guy', 'red_shirt_guy', 'blue_shirt_friend',
+            'mid_stairs_right_1', 'mid_stairs_right_2', 'mid_stairs_right_3',
+            'mid_stairs_right_4', 'mid_stairs_right_5', 'brick_door_student',
+            'security_guard_1', 'security_guard_2'
+        ];
+        $femaleChars = [
+            'green_saree_girl', 'standing_girl_1', 'standing_girl_2', 'pink_salwar_girl',
+            'cyan_salwar_girl', 'cream_dress_girl', 'mid_stairs_girl_1',
+            'mid_stairs_girl_2', 'mid_stairs_girl_3', 'stairs_girl_magenta',
+            'stairs_girl_black'
+        ];
+        $allChars = array_merge($maleChars, $femaleChars, ['security_gate_1', 'security_gate_2', 'security_gate_3']);
 
-        if ($occupied) {
-            jsonResponse([
-                'error' => "এই ক্যারেক্টারটি ইতিমধ্যে {$occupied['name']} দখল করে রেখেছেন!",
-                'isTaken' => true
-            ], 409);
+        // Fetch all currently occupied characters in this room (excluding me)
+        $takenStmt = $pdo->prepare("SELECT character_id FROM participants WHERE room_id = :room_id AND id != :my_id");
+        $takenStmt->execute([':room_id' => $roomId, ':my_id' => $userId]);
+        $takenChars = $takenStmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+        $wasReassigned = false;
+        if (!$characterId || in_array($characterId, $takenChars, true)) {
+            // Requested character is taken: strictly find the first available free character
+            $preferredPool = ($gender === 'female') ? $femaleChars : $maleChars;
+            $freeChar = null;
+            foreach ($preferredPool as $cId) {
+                if (!in_array($cId, $takenChars, true)) {
+                    $freeChar = $cId;
+                    break;
+                }
+            }
+            if (!$freeChar) {
+                // If all preferred gender characters are claimed, pick any free character
+                foreach ($allChars as $cId) {
+                    if (!in_array($cId, $takenChars, true)) {
+                        $freeChar = $cId;
+                        break;
+                    }
+                }
+            }
+            if ($freeChar) {
+                $characterId = $freeChar;
+                $wasReassigned = true;
+            }
         }
 
         // Upsert participant with explicit UTC time
@@ -256,7 +291,11 @@ switch ($action) {
             ':text' => $joinMsg
         ]);
 
-        jsonResponse(['success' => true]);
+        jsonResponse([
+            'success' => true,
+            'characterId' => $characterId,
+            'wasReassigned' => $wasReassigned
+        ]);
         break;
 
     case 'transfer':
