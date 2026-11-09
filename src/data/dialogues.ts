@@ -26,7 +26,7 @@ export interface Hotspot {
 }
 
 export const CAMPUS_HOTSPOTS: Hotspot[] = [
-  // 1. Central Guitarist
+  // 1. Central Guitarist (Singing & Guitar Player)
   {
     id: 'guitarist',
     groupName: '🎸 ক্যাম্পাস রকস্টার সার্কেল',
@@ -35,7 +35,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🎸',
     x: 54,
     y: 73,
-    width: 14,
+    width: 11,
     height: 12,
     actionType: 'music',
     dialogues: {
@@ -60,7 +60,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
           { speaker: 'তানভীর', text: 'যারে ভালোবাইসা গিটার বাজানো শিখলাম, সে অন্য ডিপার্টমেন্টের বাইকার ভাইয়ের সাথে চইলা গেল রে মামা!' }
         ],
         [
-          { speaker: 'তানভীর', text: 'গান গাওয়ার সময় যে মাইয়াটার দিকে তাকাইতাম, সে আজকে ফ্রেন্ডরে নিয়া আসলো আমার গান শুনাইতে!' }
+          { speaker: 'তানভীর', text: 'গান গাওয়ার সময় যে মেয়েটার দিকে তাকাইতাম, সে আজকে আরেকজনরে নিয়া আসলো আমার গান শুনাইতে!' }
         ]
       ],
       exams: [
@@ -88,9 +88,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     subName: 'রাহাত (কথা বেশি কাজ কম)',
     tagline: 'যে সবসময় বড় বড় কথা বলে',
     emoji: '🗣️',
-    x: 40,
+    x: 41,
     y: 73,
-    width: 10,
+    width: 9,
     height: 12,
     actionType: 'dialogue',
     dialogues: {
@@ -136,9 +136,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     subName: 'শাকিল (নিরব শ্রোতা)',
     tagline: 'আড্ডায় শুধু চা খায় আর শুনে',
     emoji: '🎵',
-    x: 68,
-    y: 83,
-    width: 11,
+    x: 69,
+    y: 84,
+    width: 10,
     height: 12,
     actionType: 'dialogue',
     dialogues: {
@@ -177,9 +177,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     subName: 'আবির (ট্যুরের স্বপ্নদ্রষ্টা)',
     tagline: 'প্রতি সেমিস্টারে ট্যুর প্ল্যান করে কিন্তু যায় না',
     emoji: '✨',
-    x: 75,
+    x: 77,
     y: 73,
-    width: 11,
+    width: 9,
     height: 13,
     actionType: 'dialogue',
     dialogues: {
@@ -218,9 +218,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     subName: 'সিয়াম (ডিপ্রেশন কোডার)',
     tagline: 'কোডে বাগ আর জীবনে রিটেক',
     emoji: '📚',
-    x: 82,
+    x: 85,
     y: 74,
-    width: 8,
+    width: 7,
     height: 11,
     actionType: 'dialogue',
     dialogues: {
@@ -255,9 +255,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     subName: 'মাহিন (ইনবক্সে সিন-জোনড)',
     tagline: 'সারাদিন চ্যাটে লাস্ট সিন দেখে',
     emoji: '📱',
-    x: 93,
+    x: 94,
     y: 74,
-    width: 10,
+    width: 9,
     height: 13,
     actionType: 'dialogue',
     dialogues: {
@@ -300,7 +300,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🥻',
     x: 8,
     y: 73,
-    width: 9,
+    width: 8,
     height: 13,
     actionType: 'dialogue',
     dialogues: {
@@ -338,7 +338,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '📑',
     x: 16,
     y: 74,
-    width: 10,
+    width: 8,
     height: 13,
     actionType: 'dialogue',
     dialogues: {
@@ -377,7 +377,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '💬',
     x: 23,
     y: 73,
-    width: 8,
+    width: 7,
     height: 12,
     actionType: 'dialogue',
     dialogues: {
@@ -415,7 +415,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '📝',
     x: 29,
     y: 74,
-    width: 8,
+    width: 7,
     height: 12,
     actionType: 'dialogue',
     dialogues: {
@@ -449,10 +449,10 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     subName: 'পিলারের প্রহরী দল',
     tagline: 'ক্লাসে না গিয়ে পিলারে হেলান দিয়ে থাকে',
     emoji: '🎒',
-    x: 13,
+    x: 14,
     y: 62,
-    width: 12,
-    height: 14,
+    width: 11,
+    height: 13,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -479,37 +479,39 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 12. Stairs Crowd (Right stairs)
+  // 12. Girls sitting on stairs left of entrance [NEW DETECTED MEMBER]
   {
-    id: 'stairs_crowd',
-    groupName: '🏛️ সিঁড়ির ফিলোসফার গ্যাং',
-    subName: 'উঁচু সিঁড়ির আড্ডাবাজ দল',
-    tagline: 'ক্যাম্পাস লাইফের সেরা ভিউপয়েন্ট',
-    emoji: '🏛️',
-    x: 84,
-    y: 62,
-    width: 16,
-    height: 11,
+    id: 'left_stairs_girls',
+    groupName: '👭 সিঁড়ির শান্ত কোণ',
+    subName: 'তানিয়া ও রিয়া (সিঁড়িতে বসা আপুরা)',
+    tagline: 'ভিড় এড়িয়ে একটু নিরিবিলি গল্প',
+    emoji: '👭',
+    x: 37,
+    y: 60,
+    width: 8,
+    height: 8,
     actionType: 'dialogue',
     dialogues: {
       general: [
         [
-          { speaker: 'সিঁড়ির বড় ভাই', text: 'উপর থেকে নিচের আড্ডাটা দেখতে পুরো সিনেমা মনে হয় রে ভাই!' }
+          { speaker: 'তানিয়া', text: 'এই কোনাটায় বসলে বেশ শান্ত লাগে, পুরো ক্যাম্পাসের মানুষ দেখা যায়!' },
+          { speaker: 'রিয়া', text: 'হ্যাঁ, নিচে যে হইচই চলতেছে গিটার নিয়ে!' }
         ]
       ],
       heartbreak: [
         [
-          { speaker: 'সিঁড়ির আপু', text: 'ফার্স্ট সেমিস্টারে ক্যাম্পাসের প্রেমে পড়ছিলাম, লাস্ট সেমিস্টারে আইসা দেখি প্রেমই নাই, খালি রিটেক আছে!' }
+          { speaker: 'তানিয়া', text: 'শুনলাম ফারহানের সাথে নাকি মিমের ব্রেকআপ হয়ে গেছে!' },
+          { speaker: 'রিয়া', text: 'ওদের তো প্রতি সেমিস্টারেই একবার করে ব্রেকআপ হয়, আবার প্যাচআপ হয়ে যাবে!' }
         ]
       ],
       exams: [
         [
-          { speaker: 'সিঁড়ির ভাই', text: 'পাস করলেই হইলো মামা, ৩.০ আর ৩.৮ এর পার্থক্য চাকরির ভাইভায় কেউ জিজ্ঞেস করে না!' }
+          { speaker: 'তানিয়া', text: 'কুইজের স্লাইড ৩ টা পড়া বাকি, এখানে বসে চোখ বুলায়ে নিই!' }
         ]
       ],
       canteen: [
         [
-          { speaker: 'সিঁড়ির আপু', text: 'সিঁড়িতে বইসা হাওয়ায় চা খাওয়ার মজাই আলাদা!' }
+          { speaker: 'রিয়া', text: 'চা শেষ হলে চল লাইব্রেরির এসিতে গিয়ে বসি!' }
         ]
       ]
     }
@@ -523,8 +525,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     tagline: 'আইডি কার্ড না থাকলে ঢুকতে মানা',
     emoji: '🏢',
     x: 58,
-    y: 57,
-    width: 16,
+    y: 56,
+    width: 14,
     height: 8,
     actionType: 'gate',
     dialogues: {
@@ -552,17 +554,89 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 14. Paper Tea Cups & Food Plate
+  // 14. Stairs Crowd (Right stairs)
+  {
+    id: 'stairs_crowd',
+    groupName: '🏛️ সিঁড়ির ফিলোসফার গ্যাং',
+    subName: 'উঁচু সিঁড়ির আড্ডাবাজ দল',
+    tagline: 'ক্যাম্পাস লাইফের সেরা ভিউপয়েন্ট',
+    emoji: '🏛️',
+    x: 84,
+    y: 61,
+    width: 14,
+    height: 10,
+    actionType: 'dialogue',
+    dialogues: {
+      general: [
+        [
+          { speaker: 'সিঁড়ির বড় ভাই', text: 'উপর থেকে নিচের আড্ডাটা দেখতে পুরো সিনেমা মনে হয় রে ভাই!' }
+        ]
+      ],
+      heartbreak: [
+        [
+          { speaker: 'সিঁড়ির আপু', text: 'ফার্স্ট সেমিস্টারে ক্যাম্পাসের প্রেমে পড়ছিলাম, লাস্ট সেমিস্টারে আইসা দেখি প্রেমই নাই, খালি রিটেক আছে!' }
+        ]
+      ],
+      exams: [
+        [
+          { speaker: 'সিঁড়ির ভাই', text: 'পাস করলেই হইলো মামা, ৩.০ আর ৩.৮ এর পার্থক্য চাকরির ভাইভায় কেউ জিজ্ঞেস করে না!' }
+        ]
+      ],
+      canteen: [
+        [
+          { speaker: 'সিঁড়ির আপু', text: 'সিঁড়িতে বইসা হাওয়ায় চা খাওয়ার মজাই আলাদা!' }
+        ]
+      ]
+    }
+  },
+
+  // 15. Student walking on far right [NEW DETECTED MEMBER]
+  {
+    id: 'right_walking_guy',
+    groupName: '🏃‍♂️ লেট-কামার স্কোয়াড',
+    subName: 'নাহিদ (দৌড়ের উপর থাকা ছাত্র)',
+    tagline: 'প্রতিদিন ক্লাসে ৫ মিনিট লেট',
+    emoji: '🏃‍♂️',
+    x: 96,
+    y: 61,
+    width: 6,
+    height: 10,
+    actionType: 'dialogue',
+    dialogues: {
+      general: [
+        [
+          { speaker: 'নাহিদ', text: 'রাস্তায় যে জ্যাম ছিল রে ভাই! স্যার অলরেডি ক্লাসে ঢুকে গেছে মনে হয়!' }
+        ]
+      ],
+      heartbreak: [
+        [
+          { speaker: 'নাহিদ', text: 'দৌড়াইতে দৌড়াইতে ক্রাশের সাথে ধাক্কা খাওয়ার স্বপ্ন দেখছিলাম, বাস্তবে গার্ড মামার সাথে ধাক্কা খাইলাম!' }
+        ]
+      ],
+      exams: [
+        [
+          { speaker: 'নাহিদ', text: 'অ্যাটেন্ডেন্সের ৫ মার্কস বাঁচাতে জান বাজি রেখে দৌড়াচ্ছি!' }
+        ]
+      ],
+      canteen: [
+        [
+          { speaker: 'নাহিদ', text: 'ক্লাস শেষ হইলেই সোজা ক্যান্টিনে যাব, সকাল থেকে পেটে কিচ্ছু পড়ে নাই!' }
+        ]
+      ]
+    }
+  },
+
+  // 16. Paper Tea Cups & Food Plate
   {
     id: 'tea_cups',
     groupName: '☕ চায়ের কাপ ও সিঙ্গাড়া',
     subName: 'ক্যাম্পাস আড্ডার আসল জ্বালানি',
     tagline: 'চা ছাড়া আড্ডা অসমাপ্ত',
     emoji: '☕',
-    x: 53,
-    y: 82,
-    width: 12,
-    height: 6,
+    x: 54,
+    y: 81,
+    width: 10,
+    height: 5,
     actionType: 'cheers',
     dialogues: {
       general: [
@@ -588,7 +662,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 15. Southeast University Signboard
+  // 17. Southeast University Signboard
   {
     id: 'seu_signboard',
     groupName: '🎓 সাউথইস্ট ইউনিভার্সিটি গর্ব',
@@ -625,7 +699,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 16. Hanging Ceiling Lamp
+  // 18. Hanging Ceiling Lamp
   {
     id: 'hanging_lamp',
     groupName: '💡 সিলিং লাইট ও আবহাওয়া সুইচ',
@@ -634,7 +708,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '💡',
     x: 46,
     y: 12,
-    width: 10,
+    width: 9,
     height: 8,
     actionType: 'lamp',
     dialogues: {

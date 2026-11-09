@@ -29,12 +29,12 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [conversation, setConversation] = useState<DialogueLine[]>([]);
 
-  // Auto-dismiss active bubble after 9 seconds
+  // Auto-dismiss active bubble after 10 seconds
   useEffect(() => {
     if (!activeHotspot) return;
     const timer = setTimeout(() => {
       setActiveHotspot(null);
-    }, 9000);
+    }, 10000);
     return () => clearTimeout(timer);
   }, [activeHotspot]);
 
@@ -67,11 +67,11 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
 
   return (
     <div
-      className="relative mx-auto rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 aspect-[686/1024] touch-manipulation select-none"
+      className="relative mx-auto rounded-3xl overflow-hidden shadow-2xl border-2 border-slate-800/90 bg-slate-950 aspect-[686/1024] touch-manipulation select-none transition-all"
       style={{
         width: '100%',
-        maxWidth: 'min(100%, calc((100dvh - 165px) * 686 / 1024))',
-        maxHeight: 'calc(100dvh - 165px)'
+        maxWidth: 'min(100%, calc((100dvh - 140px) * 686 / 1024))',
+        height: 'calc(100dvh - 140px)'
       }}
     >
       {/* Base Artwork - Day Mode */}
@@ -111,7 +111,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
         return (
           <div
             key={hotspot.id}
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation"
+            className="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation"
             style={{
               left: `${hotspot.x}%`,
               top: `${hotspot.y}%`,
@@ -121,23 +121,32 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
             onClick={() => handleHotspotClick(hotspot)}
             title={`${hotspot.groupName} (${hotspot.subName}) — আড্ডা শুনুন`}
           >
-            {/* Clickable Area Highlight */}
+            {/* Clickable Area Indicator & Soft Ring */}
             <div
-              className={`w-full h-full rounded-2xl transition-all duration-300 flex items-center justify-center ${
+              className={`w-full h-full rounded-2xl transition-all duration-300 flex items-center justify-center relative ${
                 isActive
-                  ? 'ring-2 ring-amber-400 bg-amber-400/25 shadow-lg'
-                  : 'hover:bg-amber-400/15 group-hover:ring-1 group-hover:ring-amber-300/40'
+                  ? 'ring-2 ring-amber-400 bg-amber-400/30 shadow-lg'
+                  : 'hover:bg-amber-400/20 group-hover:ring-1 group-hover:ring-amber-300/50'
               }`}
             >
+              {/* Subtle Pulsing Hint Dot for Easy Detection */}
+              <span
+                className={`absolute w-2 h-2 rounded-full transition-opacity ${
+                  isActive
+                    ? 'bg-amber-400 scale-125'
+                    : 'bg-amber-300/60 group-hover:bg-amber-300 group-hover:scale-110'
+                }`}
+              />
+
               {/* Central Guitarist Badges & Music Notes */}
               {hotspot.id === 'guitarist' && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 p-1.5 rounded-full shadow-lg animate-bounce group-hover:scale-110 transition">
-                  <Music size={13} className={isPlaying ? 'animate-spin' : ''} />
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 p-1.5 rounded-full shadow-lg animate-bounce group-hover:scale-110 transition z-30">
+                  <Music size={14} className={isPlaying ? 'animate-spin' : ''} />
                 </div>
               )}
 
               {hotspot.id === 'tea_cups' && (
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600/90 text-white p-1 rounded-full shadow-lg group-hover:scale-110 transition">
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600/90 text-white p-1 rounded-full shadow-lg group-hover:scale-110 transition z-30">
                   <Coffee size={12} />
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs opacity-75 animate-steam">
                     ♨️
@@ -147,7 +156,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
 
               {hotspot.id === 'hanging_lamp' && (
                 <div
-                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 p-1.5 rounded-full shadow-lg transition ${
+                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 p-1.5 rounded-full shadow-lg transition z-30 ${
                     isNight
                       ? 'bg-yellow-400 text-slate-900 animate-pulseGlow'
                       : 'bg-slate-700/80 text-yellow-300'
@@ -172,18 +181,18 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
                 </>
               )}
             </div>
-
-            {/* Speech Bubble Popup */}
-            {isActive && (
-              <CharacterBubble
-                hotspot={hotspot}
-                conversation={conversation}
-                onClose={() => setActiveHotspot(null)}
-              />
-            )}
           </div>
         );
       })}
+
+      {/* Render Active Character Speech Bubble at Scene Root (Guaranteed Zero Cutoff) */}
+      {activeHotspot && (
+        <CharacterBubble
+          hotspot={activeHotspot}
+          conversation={conversation}
+          onClose={() => setActiveHotspot(null)}
+        />
+      )}
     </div>
   );
 };
