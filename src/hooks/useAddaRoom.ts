@@ -10,8 +10,16 @@ import {
   CAMPUS_CHARACTERS
 } from '../types/room';
 
-const MQTT_BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
+// High-speed, highly reliable EMQX public broker for browser WebSockets
+const PRIMARY_MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+const FALLBACK_MQTT_BROKER = 'wss://broker.hivemq.com:8884/mqtt';
 const ROOM_STORAGE_PREFIX = 'seu_adda_room_';
+
+interface QueuedOutboxMessage {
+  topic: string;
+  payload: string;
+  options: { retain?: boolean; qos: 0 | 1 };
+}
 
 export function toBengaliNumber(num: number): string {
   const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -85,7 +93,26 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     return { id: tabId, name: '', dept: 'CSE', gender: 'male', characterId: 'guitarist' };
   });
 
-  const [activeRoom, setActiveRoom] = useState<AddaRoom | null>(null);
+  const [activeRoom, setActiveRoom] = useState<AddaRoom | null>(() => {
+    // If URL has ?room=SEU-XXXX, see if we have it locally cached
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const r = params.get('room');
+        if (r) {
+          const saved = localStorage.getItem(`${ROOM_STORAGE_PREFIX}${r.trim().toUpperCase()}`);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.expiresAt > Date.now()) {
+              return parsed;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  });
+
   const [timeRemaining, setTimeRemaining] = useState<string>('০২:০০:০০');
   const [roomError, setRoomError] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState(false);
@@ -96,11 +123,19 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
   // Latest speech for Photo Card auto-prefill
   const [latestSpeech, setLatestSpeech] = useState<{ speaker: string; text: string } | null>(null);
 
+  // Synchronized state refs for stable event handlers
   const activeRoomRef = useRef<AddaRoom | null>(null);
   activeRoomRef.current = activeRoom;
 
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
+
+  const onRoomSongChangeRef = useRef(onRoomSongChange);
+  onRoomSongChangeRef.current = onRoomSongChange;
+
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const mqttClientRef = useRef<MqttClient | null>(null);
+  const outboxRef = useRef<QueuedOutboxMessage[]>([]);
 
   // Save current user to local storage whenever updated
   const saveCurrentUser = useCallback(
@@ -122,23 +157,49 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     []
   );
 
-  // Dispatch event over both BroadcastChannel (cross-tab) and MQTT WSS (cross-device)
-  const dispatchRoomEvent = useCallback((event: RoomSyncEvent) => {
-    try {
-      if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.postMessage(event);
+  // Publish message over MQTT (with outbox buffering if connecting)
+  const publishMqtt = useCallback(
+    (topic: string, payload: string, options: { retain?: boolean; qos: 0 | 1 } = { qos: 1 }) => {
+      const client = mqttClientRef.current;
+      if (client && client.connected) {
+        try {
+          client.publish(topic, payload, options);
+        } catch (e) {
+          outboxRef.current.push({ topic, payload, options });
+        }
+      } else {
+        outboxRef.current.push({ topic, payload, options });
       }
-    } catch (e) {}
+    },
+    []
+  );
 
-    try {
-      if (mqttClientRef.current && mqttClientRef.current.connected) {
-        const topic = `seu-adda/rooms/${event.roomId}`;
-        mqttClientRef.current.publish(topic, JSON.stringify(event), { qos: 1 });
-      }
-    } catch (e) {}
-  }, []);
+  // Publish authoritative room state with retain: true to broker
+  const publishRetainedState = useCallback(
+    (room: AddaRoom) => {
+      if (!room || !room.id) return;
+      const topic = `seu-adda/rooms/${room.id}/state`;
+      publishMqtt(topic, JSON.stringify(room), { retain: true, qos: 1 });
+    },
+    [publishMqtt]
+  );
 
-  // Update room in state and local storage
+  // Dispatch event over both BroadcastChannel (local tabs) and MQTT events topic (cross-device)
+  const dispatchRoomEvent = useCallback(
+    (event: RoomSyncEvent) => {
+      try {
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage(event);
+        }
+      } catch (e) {}
+
+      const topic = `seu-adda/rooms/${event.roomId}/events`;
+      publishMqtt(topic, JSON.stringify(event), { qos: 1 });
+    },
+    [publishMqtt]
+  );
+
+  // Update room in local state and localStorage
   const updateRoomState = useCallback((updater: (prev: AddaRoom | null) => AddaRoom | null) => {
     setActiveRoom((prev) => {
       const next = updater(prev);
@@ -151,11 +212,11 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     });
   }, []);
 
-  // Show a speech bubble over a specific character (30 seconds lifetime with gentle wind-drift on replacement)
+  // Show a speech bubble over a specific character (30 seconds duration with gentle wind-drift)
   const triggerSpeechBubble = useCallback((msg: ChatMessage) => {
     if (!msg.characterId || msg.isSystem) return;
 
-    const expiresAt = Date.now() + 30000; // 30 seconds duration
+    const expiresAt = Date.now() + 30000; // 30 seconds lifetime
     const newBubble: ActiveSpeechBubble = {
       id: msg.id,
       characterId: msg.characterId,
@@ -168,8 +229,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     };
 
     setActiveSpeechBubbles((prev) => {
-      // If there are existing bubbles for this character, mark them as isDrifting: true
-      // and let them drift off in the breeze for 2.8s before removal
+      // Mark any prior bubble for this character as drifting away in breeze
       const updated = prev.map((b) => {
         if (b.characterId === msg.characterId && !b.isDrifting) {
           return {
@@ -190,14 +250,125 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     });
   }, []);
 
-  // Handle incoming events from peer (local tab or remote device)
+  // Handle incoming authoritative room state from broker (/state with retain: true)
+  const handleIncomingState = useCallback(
+    (incoming: AddaRoom) => {
+      if (!incoming || !incoming.id) return;
+      const now = Date.now();
+
+      // Check room expiry
+      if (incoming.expiresAt <= now) {
+        setActiveRoom(null);
+        setActiveSpeechBubbles([]);
+        setRoomError('⌛ আড্ডা রুমের মেয়াদ শেষ হয়ে গেছে।');
+        try {
+          localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${incoming.id}`);
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch (e) {}
+        return;
+      }
+
+      // Immediately sync remaining time matching the host's actual expiry
+      const remainingMs = incoming.expiresAt - now;
+      setTimeRemaining(formatTimeRemaining(remainingMs));
+
+      const me = currentUserRef.current;
+
+      updateRoomState((prev) => {
+        if (!prev) {
+          // Newly arrived on this device: hydrate from broker!
+          const exists = incoming.participants.some((p) => p.id === me.id);
+          let participants = [...incoming.participants];
+          let assignedCharId = me.characterId;
+
+          if (!exists && me.name) {
+            // Check character conflict: if chosen character is already claimed by someone else, auto-reassign
+            const takenCharIds = incoming.participants.map((p) => p.characterId);
+            if (takenCharIds.includes(assignedCharId)) {
+              const candidates = CAMPUS_CHARACTERS.filter((c) => c.gender === me.gender);
+              const free =
+                candidates.find((c) => !takenCharIds.includes(c.id)) ||
+                CAMPUS_CHARACTERS.find((c) => !takenCharIds.includes(c.id));
+              if (free) {
+                assignedCharId = free.id;
+                saveCurrentUser(me.name, me.dept, me.gender, assignedCharId);
+              }
+            }
+
+            const myParticipant: RoomParticipant = {
+              id: me.id,
+              name: me.name,
+              dept: me.dept,
+              gender: me.gender,
+              characterId: assignedCharId,
+              joinedAt: now,
+              lastSeen: now
+            };
+            participants.push(myParticipant);
+          }
+
+          const hydrated: AddaRoom = {
+            ...incoming,
+            participants
+          };
+
+          // If incoming room has song and differs, sync playback
+          if (incoming.currentSong?.source && onRoomSongChangeRef.current) {
+            onRoomSongChangeRef.current(incoming.currentSong.source);
+          }
+
+          return hydrated;
+        }
+
+        // Room already active: merge messages & participants while preserving host's timing
+        const allMsgs = [...prev.messages];
+        for (const sm of incoming.messages) {
+          if (!allMsgs.some((m) => m.id === sm.id)) {
+            allMsgs.push(sm);
+          }
+        }
+
+        // Union merge participants
+        const pMap = new Map<string, RoomParticipant>();
+        incoming.participants.forEach((p) => pMap.set(p.id, p));
+        prev.participants.forEach((p) => {
+          const inc = pMap.get(p.id);
+          if (!inc || (p.lastSeen && p.lastSeen > inc.lastSeen)) {
+            pMap.set(p.id, p);
+          }
+        });
+
+        // Sync song if updated
+        if (
+          incoming.currentSong &&
+          incoming.currentSong.source !== prev.currentSong?.source &&
+          onRoomSongChangeRef.current
+        ) {
+          onRoomSongChangeRef.current(incoming.currentSong.source);
+        }
+
+        return {
+          ...incoming,
+          createdAt: incoming.createdAt,
+          expiresAt: incoming.expiresAt,
+          currentSong: incoming.currentSong || prev.currentSong,
+          participants: Array.from(pMap.values()),
+          messages: allMsgs
+        };
+      });
+    },
+    [saveCurrentUser, updateRoomState]
+  );
+
+  // Handle incoming ephemeral events from peer (/events topic)
   const handleIncomingEvent = useCallback(
     (event: RoomSyncEvent) => {
       if (!event || !event.roomId) return;
       const current = activeRoomRef.current;
+      const me = currentUserRef.current;
 
       // Ignore our own events
-      if (event.senderId === currentUser.id) return;
+      if (event.senderId === me.id) return;
 
       if (event.type === 'ROOM_DESTROYED') {
         if (current && current.id === event.roomId) {
@@ -224,28 +395,36 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             };
           });
 
-          // Trigger on-screen speech bubble for that character
+          // Trigger on-screen 30-second speech bubble for that character
           triggerSpeechBubble(msg);
         }
       } else if (event.type === 'ROOM_CHARACTER_TRANSFER') {
         if (current && current.id === event.roomId) {
           const { participantId, newCharacterId } = event.payload;
+          let updatedState: AddaRoom | null = null;
           updateRoomState((prev) => {
             if (!prev) return null;
-            return {
+            const next = {
               ...prev,
               participants: prev.participants.map((p) =>
-                p.id === participantId ? { ...p, characterId: newCharacterId, lastSeen: Date.now() } : p
+                p.id === participantId
+                  ? { ...p, characterId: newCharacterId, lastSeen: Date.now() }
+                  : p
               )
             };
+            updatedState = next;
+            return next;
           });
+          if (updatedState) {
+            publishRetainedState(updatedState);
+          }
         }
       } else if (event.type === 'ROOM_SONG_CHANGE') {
         if (current && current.id === event.roomId) {
           const newSong = event.payload as RoomSong;
           updateRoomState((prev) => (prev ? { ...prev, currentSong: newSong } : null));
-          if (newSong && newSong.source && onRoomSongChange) {
-            onRoomSongChange(newSong.source);
+          if (newSong && newSong.source && onRoomSongChangeRef.current) {
+            onRoomSongChangeRef.current(newSong.source);
           }
         }
       } else if (event.type === 'ROOM_JOIN') {
@@ -276,29 +455,30 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             return next;
           });
 
-          // Respond with updated room state
+          // Host or online peer republishes the updated room state to retained topic
           if (updatedRoomState) {
-            dispatchRoomEvent({
-              type: 'ROOM_SYNC_RESPONSE',
-              roomId: event.roomId,
-              senderId: currentUser.id,
-              payload: updatedRoomState,
-              timestamp: Date.now()
-            });
+            publishRetainedState(updatedRoomState);
           }
         }
       } else if (event.type === 'ROOM_LEAVE') {
         if (current && current.id === event.roomId) {
           const { participantId, systemMessage } = event.payload;
+          let updatedRoomState: AddaRoom | null = null;
           updateRoomState((prev) => {
             if (!prev) return null;
             const updatedParticipants = prev.participants.filter((p) => p.id !== participantId);
-            return {
+            const next = {
               ...prev,
               participants: updatedParticipants,
               messages: systemMessage ? [...prev.messages, systemMessage] : prev.messages
             };
+            updatedRoomState = next;
+            return next;
           });
+
+          if (updatedRoomState) {
+            publishRetainedState(updatedRoomState);
+          }
         }
       } else if (event.type === 'ROOM_HEARTBEAT') {
         if (current && current.id === event.roomId) {
@@ -313,34 +493,13 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             };
           });
         }
-      } else if (event.type === 'ROOM_SYNC_RESPONSE') {
-        const syncedRoom = event.payload as AddaRoom;
-        if (syncedRoom && syncedRoom.id === event.roomId) {
-          updateRoomState((prev) => {
-            if (!prev) return syncedRoom;
-            const allMsgs = [...prev.messages];
-            for (const sm of syncedRoom.messages) {
-              if (!allMsgs.some((m) => m.id === sm.id)) {
-                allMsgs.push(sm);
-              }
-            }
-
-            // Union-merge participants by unique ID
-            const pMap = new Map<string, RoomParticipant>();
-            syncedRoom.participants.forEach((p) => pMap.set(p.id, p));
-            prev.participants.forEach((p) => pMap.set(p.id, p));
-            const mergedParticipants = Array.from(pMap.values());
-
-            return {
-              ...syncedRoom,
-              participants: mergedParticipants,
-              messages: allMsgs
-            };
-          });
+      } else if (event.type === 'ROOM_SYNC_REQUEST') {
+        if (current && current.id === event.roomId) {
+          publishRetainedState(current);
         }
       }
     },
-    [currentUser.id, dispatchRoomEvent, onRoomSongChange, triggerSpeechBubble, updateRoomState]
+    [publishRetainedState, triggerSpeechBubble, updateRoomState]
   );
 
   // Setup BroadcastChannel (Local Tabs)
@@ -362,49 +521,84 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     };
   }, [handleIncomingEvent]);
 
-  // Setup MQTT client whenever activeRoom changes
+  // Setup MQTT client whenever activeRoom?.id changes
   useEffect(() => {
-    if (!activeRoom) {
+    if (!activeRoom?.id) {
       if (mqttClientRef.current) {
-        mqttClientRef.current.end(true);
+        try {
+          mqttClientRef.current.end(true);
+        } catch (_) {}
         mqttClientRef.current = null;
       }
       return;
     }
 
     const roomId = activeRoom.id;
-    const topic = `seu-adda/rooms/${roomId}`;
+    const stateTopic = `seu-adda/rooms/${roomId}/state`;
+    const eventsTopic = `seu-adda/rooms/${roomId}/events`;
 
     try {
-      const client = mqtt.connect(MQTT_BROKER_URL, {
-        clientId: `seu_${currentUser.id}_${Math.random().toString(16).substring(2, 6)}`,
+      const client = mqtt.connect(PRIMARY_MQTT_BROKER, {
+        clientId: `seu_${currentUserRef.current.id}_${Math.random().toString(16).substring(2, 8)}`,
         clean: true,
         connectTimeout: 5000,
-        reconnectPeriod: 3000
+        reconnectPeriod: 2500,
+        keepalive: 30
       });
 
       mqttClientRef.current = client;
 
       client.on('connect', () => {
-        client.subscribe(topic, { qos: 1 });
+        // Subscribe to both retained state topic and live events topic
+        client.subscribe([stateTopic, eventsTopic], { qos: 1 }, (err) => {
+          if (!err) {
+            // Drain outbox queue immediately
+            while (outboxRef.current.length > 0) {
+              const item = outboxRef.current.shift();
+              if (item) {
+                try {
+                  client.publish(item.topic, item.payload, item.options);
+                } catch (_) {}
+              }
+            }
+          }
+        });
       });
 
-      client.on('message', (_t, payload) => {
-        try {
-          const parsed = JSON.parse(payload.toString());
-          handleIncomingEvent(parsed);
-        } catch (err) {}
+      client.on('message', (topic, payload) => {
+        const payloadStr = payload.toString();
+        if (!payloadStr) return; // Cleared retained state
+
+        if (topic === stateTopic) {
+          try {
+            const incomingState = JSON.parse(payloadStr) as AddaRoom;
+            if (incomingState && incomingState.id === roomId) {
+              handleIncomingState(incomingState);
+            }
+          } catch (_) {}
+        } else if (topic === eventsTopic) {
+          try {
+            const incomingEvent = JSON.parse(payloadStr) as RoomSyncEvent;
+            if (incomingEvent && incomingEvent.roomId === roomId) {
+              handleIncomingEvent(incomingEvent);
+            }
+          } catch (_) {}
+        }
       });
 
-      client.on('error', () => {});
-    } catch (e) {}
+      client.on('error', (err) => {
+        console.warn('EMQX MQTT warning, will reconnect:', err);
+      });
+    } catch (e) {
+      console.error('MQTT setup error:', e);
+    }
 
     return () => {
       try {
         mqttClientRef.current?.end(true);
       } catch (_) {}
     };
-  }, [activeRoom?.id, currentUser.id, handleIncomingEvent]);
+  }, [activeRoom?.id, handleIncomingEvent, handleIncomingState]);
 
   // Speech Bubble Cleanup & Wind Drift Transition Timer (every 500ms)
   useEffect(() => {
@@ -417,10 +611,10 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
         for (const bubble of prev) {
           if (now >= bubble.expiresAt) {
-            // Completely expired, remove
+            // Expired, remove
             changed = true;
           } else if (!bubble.isDrifting && bubble.expiresAt - now <= 2800) {
-            // Reaching end of 30-second lifetime: catch the wind and float away
+            // Entering final 2.8s: gently drift away with the campus breeze
             changed = true;
             next.push({ ...bubble, isDrifting: true });
           } else {
@@ -435,7 +629,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     return () => clearInterval(interval);
   }, []);
 
-  // 2-Hour TTL Countdown Timer & Expiration Handler
+  // 2-Hour TTL Countdown Timer & Expiration Handler (every 1000ms)
   useEffect(() => {
     if (!activeRoom) return;
 
@@ -451,10 +645,14 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         dispatchRoomEvent({
           type: 'ROOM_DESTROYED',
           roomId: current.id,
-          senderId: currentUser.id,
+          senderId: currentUserRef.current.id,
           payload: { reason: 'expired' },
           timestamp: now
         });
+
+        // Clear retained state on MQTT broker
+        publishMqtt(`seu-adda/rooms/${current.id}/state`, '', { retain: true, qos: 1 });
+
         setActiveRoom(null);
         setActiveSpeechBubbles([]);
         setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়েছে! রুমটি স্বয়ংক্রিয়ভাবে বন্ধ করা হয়েছে।');
@@ -468,9 +666,9 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeRoom, currentUser.id, dispatchRoomEvent]);
+  }, [activeRoom?.id, activeRoom?.expiresAt, dispatchRoomEvent, publishMqtt]);
 
-  // Heartbeat & Empty Room Cleanup (runs every 9 seconds)
+  // Heartbeat & Empty Room Cleanup (runs every 8 seconds)
   useEffect(() => {
     if (!activeRoom) return;
 
@@ -479,13 +677,14 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       if (!current) return;
 
       const now = Date.now();
+      const me = currentUserRef.current;
 
-      // Send our own heartbeat
+      // Broadcast our presence heartbeat
       dispatchRoomEvent({
         type: 'ROOM_HEARTBEAT',
         roomId: current.id,
-        senderId: currentUser.id,
-        payload: { participantId: currentUser.id },
+        senderId: me.id,
+        payload: { participantId: me.id },
         timestamp: now
       });
 
@@ -493,27 +692,31 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       updateRoomState((prev) => {
         if (!prev) return null;
         const activeParticipants = prev.participants.filter(
-          (p) => p.id === currentUser.id || now - p.lastSeen < 28000
+          (p) => p.id === me.id || now - p.lastSeen < 28000
         );
 
         if (activeParticipants.length === 0) {
           try {
             localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${prev.id}`);
           } catch (_) {}
+          publishMqtt(`seu-adda/rooms/${prev.id}/state`, '', { retain: true, qos: 1 });
           return null;
         }
 
-        return {
-          ...prev,
-          participants: activeParticipants
-        };
+        if (activeParticipants.length !== prev.participants.length) {
+          const next = { ...prev, participants: activeParticipants };
+          publishRetainedState(next);
+          return next;
+        }
+
+        return prev;
       });
-    }, 9000);
+    }, 8000);
 
     return () => clearInterval(interval);
-  }, [activeRoom, currentUser.id, dispatchRoomEvent, updateRoomState]);
+  }, [activeRoom?.id, dispatchRoomEvent, publishMqtt, publishRetainedState, updateRoomState]);
 
-  // 1. Create a New Room (with gender & initial character selection)
+  // 1. Create a New Room (Host publishes retained state and broadcasts join)
   const createRoom = useCallback(
     (
       roomTitle: string,
@@ -529,7 +732,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const cleanDept = hostDept.trim() || 'CSE';
       const cleanTitle = roomTitle.trim() || 'সাউথইস্ট আড্ডা রুম';
 
-      // Default character assignment
       const finalCharId =
         characterId || (gender === 'female' ? 'green_saree_girl' : 'guitarist');
 
@@ -537,7 +739,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       const roomId = generateRoomId();
       const now = Date.now();
-      const expiresAt = now + 2 * 60 * 60 * 1000; // 2 hours
+      const expiresAt = now + 2 * 60 * 60 * 1000; // exactly 2 hours
 
       const hostParticipant: RoomParticipant = {
         id: currentUser.id,
@@ -577,8 +779,13 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       } catch (e) {}
 
       setActiveRoom(newRoom);
+      setTimeRemaining('০২:০০:০০');
       setIsConnecting(false);
 
+      // Publish retained state to broker immediately (or queue if client still connecting)
+      publishRetainedState(newRoom);
+
+      // Dispatch ROOM_JOIN event
       dispatchRoomEvent({
         type: 'ROOM_JOIN',
         roomId,
@@ -589,10 +796,10 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       return roomId;
     },
-    [currentUser.id, dispatchRoomEvent, saveCurrentUser]
+    [currentUser.id, dispatchRoomEvent, publishRetainedState, saveCurrentUser]
   );
 
-  // 2. Join an Existing Room (with gender & character selection)
+  // 2. Join an Existing Room (Dispatches join and requests instant sync)
   const joinRoom = useCallback(
     (
       roomIdInput: string,
@@ -623,6 +830,17 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         }
       } catch (e) {}
 
+      // If room is locally cached and already expired, reject
+      if (targetRoom && now >= targetRoom.expiresAt) {
+        setRoomError('⚠️ এই রুমটির ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে। নতুন রুম তৈরি করুন।');
+        setIsConnecting(false);
+        try {
+          localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${cleanedId}`);
+        } catch (_) {}
+        return false;
+      }
+
+      // If not in local cache, create provisional structure while MQTT hydrates true state
       if (!targetRoom) {
         targetRoom = {
           id: cleanedId,
@@ -636,16 +854,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         };
       }
 
-      if (now >= targetRoom.expiresAt) {
-        setRoomError('⚠️ এই রুমটির ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে। নতুন রুম তৈরি করুন।');
-        setIsConnecting(false);
-        try {
-          localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${cleanedId}`);
-        } catch (_) {}
-        return false;
-      }
-
-      // Find best available character for this user (prevent duplicate/taken characters)
+      // Check available characters
       const takenCharIds = targetRoom.participants.map((p) => p.characterId);
       let assignedCharId = characterId;
       if (!assignedCharId || takenCharIds.includes(assignedCharId)) {
@@ -699,6 +908,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       setActiveRoom(joinedRoom);
       setIsConnecting(false);
 
+      // Queue ROOM_JOIN event so all connected devices receive it
       dispatchRoomEvent({
         type: 'ROOM_JOIN',
         roomId: cleanedId,
@@ -707,41 +917,57 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: now
       });
 
+      // Request immediate state sync from online peers
+      dispatchRoomEvent({
+        type: 'ROOM_SYNC_REQUEST',
+        roomId: cleanedId,
+        senderId: currentUser.id,
+        payload: {},
+        timestamp: now
+      });
+
       return true;
     },
     [currentUser.id, dispatchRoomEvent, saveCurrentUser]
   );
 
-  // 3. Transfer / Switch to Another Character (Exclusive Claim Enforcement)
+  // 3. Transfer / Switch to Another Character (Exclusive Lock Check)
   const transferCharacter = useCallback(
     (newCharacterId: string) => {
       const current = activeRoomRef.current;
-      if (!current) return;
+      if (!current) return false;
 
       const charObj = CAMPUS_CHARACTERS.find((c) => c.id === newCharacterId);
-      if (!charObj) return;
+      if (!charObj) return false;
 
-      // EXCLUSIVE LOCK CHECK: If another participant has already claimed this character, block transfer!
+      // EXCLUSIVE LOCK: Check if another participant already claimed this character
       const isClaimedByOther = current.participants.some(
         (p) => p.characterId === newCharacterId && p.id !== currentUser.id
       );
       if (isClaimedByOther) {
         const owner = current.participants.find((p) => p.characterId === newCharacterId);
-        setRoomError(`"${charObj.name}" ইতিমধ্যে ${owner?.name || 'অন্য বন্ধু'} দখল করে রেখেছেন! অন্য ক্যারেক্টার বেছে নিন।`);
+        setRoomError(
+          `"${charObj.name}" ইতিমধ্যে ${owner?.name || 'অন্য বন্ধু'} দখল করে রেখেছেন! অন্য ক্যারেক্টার বেছে নিন।`
+        );
         return false;
       }
 
       setRoomError('');
       saveCurrentUser(currentUser.name, currentUser.dept, charObj.gender, newCharacterId);
 
+      let updatedState: AddaRoom | null = null;
       updateRoomState((prev) => {
         if (!prev) return null;
-        return {
+        const next = {
           ...prev,
           participants: prev.participants.map((p) =>
-            p.id === currentUser.id ? { ...p, characterId: newCharacterId, gender: charObj.gender } : p
+            p.id === currentUser.id
+              ? { ...p, characterId: newCharacterId, gender: charObj.gender }
+              : p
           )
         };
+        updatedState = next;
+        return next;
       });
 
       dispatchRoomEvent({
@@ -751,9 +977,14 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         payload: { participantId: currentUser.id, newCharacterId },
         timestamp: Date.now()
       });
+
+      if (updatedState) {
+        publishRetainedState(updatedState);
+      }
+
       return true;
     },
-    [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, saveCurrentUser, updateRoomState]
+    [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, publishRetainedState, saveCurrentUser, updateRoomState]
   );
 
   // 4. Leave Room
@@ -778,6 +1009,9 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       try {
         localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${current.id}`);
       } catch (e) {}
+      // Clear retained state on MQTT broker
+      publishMqtt(`seu-adda/rooms/${current.id}/state`, '', { retain: true, qos: 1 });
+
       dispatchRoomEvent({
         type: 'ROOM_DESTROYED',
         roomId: current.id,
@@ -794,6 +1028,9 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       try {
         localStorage.setItem(`${ROOM_STORAGE_PREFIX}${current.id}`, JSON.stringify(updatedRoom));
       } catch (e) {}
+
+      publishRetainedState(updatedRoom);
+
       dispatchRoomEvent({
         type: 'ROOM_LEAVE',
         roomId: current.id,
@@ -808,9 +1045,9 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     try {
       window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {}
-  }, [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent]);
+  }, [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, publishMqtt, publishRetainedState]);
 
-  // 5. Send Chat Message (Trigger speech bubble over my character)
+  // 5. Send Chat Message (Trigger 30-second speech bubble + retained state sync)
   const sendChatMessage = useCallback(
     (text: string) => {
       const current = activeRoomRef.current;
@@ -836,11 +1073,18 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: formattedTime
       };
 
-      updateRoomState((prev) => (prev ? { ...prev, messages: [...prev.messages, newMsg] } : null));
+      let updatedRoomState: AddaRoom | null = null;
+      updateRoomState((prev) => {
+        if (!prev) return null;
+        const next = { ...prev, messages: [...prev.messages, newMsg] };
+        updatedRoomState = next;
+        return next;
+      });
 
       // Trigger local speech bubble immediately
       triggerSpeechBubble(newMsg);
 
+      // Broadcast live event for other devices to trigger speech bubble
       dispatchRoomEvent({
         type: 'ROOM_CHAT_MESSAGE',
         roomId: current.id,
@@ -848,8 +1092,13 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         payload: newMsg,
         timestamp: Date.now()
       });
+
+      // Update retained state so new joiners and history drawer have the message
+      if (updatedRoomState) {
+        publishRetainedState(updatedRoomState);
+      }
     },
-    [currentUser.characterId, currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, triggerSpeechBubble, updateRoomState]
+    [currentUser.characterId, currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, publishRetainedState, triggerSpeechBubble, updateRoomState]
   );
 
   // 6. Broadcast Room Song Change
@@ -875,15 +1124,17 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         isSystem: true
       };
 
-      updateRoomState((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentSong: newSong,
-              messages: [...prev.messages, systemMsg]
-            }
-          : null
-      );
+      let updatedRoomState: AddaRoom | null = null;
+      updateRoomState((prev) => {
+        if (!prev) return null;
+        const next = {
+          ...prev,
+          currentSong: newSong,
+          messages: [...prev.messages, systemMsg]
+        };
+        updatedRoomState = next;
+        return next;
+      });
 
       dispatchRoomEvent({
         type: 'ROOM_SONG_CHANGE',
@@ -893,11 +1144,15 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: Date.now()
       });
 
+      if (updatedRoomState) {
+        publishRetainedState(updatedRoomState);
+      }
+
       if (onRoomSongChange) {
         onRoomSongChange(source);
       }
     },
-    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, onRoomSongChange, updateRoomState]
+    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, onRoomSongChange, publishRetainedState, updateRoomState]
   );
 
   return {

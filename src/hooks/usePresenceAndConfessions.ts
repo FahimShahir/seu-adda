@@ -11,7 +11,7 @@ export interface Confession {
   likes: number;
 }
 
-const MQTT_BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
+const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const CONFESSIONS_TOPIC = 'seu_campus_adda/global_confessions_v1';
 
 const DEFAULT_CONFESSIONS: Confession[] = [
