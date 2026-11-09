@@ -57,7 +57,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
       confetti({
         particleCount: 30,
         spread: 60,
-        origin: { y: 0.78, x: 0.53 },
+        origin: { y: 0.78, x: 0.5 },
         colors: ['#D97706', '#F59E0B', '#B45309', '#FDE68A']
       });
     } else if (hotspot.actionType === 'lamp') {
@@ -66,133 +66,139 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   };
 
   return (
-    <div
-      className="relative mx-auto rounded-3xl overflow-hidden shadow-2xl border-2 border-slate-800/90 bg-slate-950 aspect-[686/1024] touch-manipulation select-none transition-all"
-      style={{
-        width: '100%',
-        maxWidth: 'min(100%, calc((100dvh - 140px) * 686 / 1024))',
-        height: 'calc(100dvh - 140px)'
-      }}
-    >
-      {/* Base Artwork - Day Mode */}
+    <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950 select-none">
+      {/* Ambient Blurred Widescreen Backdrop (Fills Widescreen PC Monitors Edge-to-Edge) */}
       <img
-        src="./images/campus-day.jpg"
-        alt="Southeast University Campus Adda - Day"
-        className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-1000 ${
-          isNight ? 'opacity-0' : 'opacity-100'
-        }`}
+        src={isNight ? "./images/campus-night.jpg" : "./images/campus-day.jpg"}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover filter blur-3xl scale-125 opacity-40 pointer-events-none select-none transition-all duration-1000"
       />
 
-      {/* Base Artwork - Night Mode */}
-      <img
-        src="./images/campus-night.jpg"
-        alt="Southeast University Campus Adda - Night"
-        className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-1000 ${
-          isNight ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-
-      {/* Ambient Lighting Gradient Overlay */}
+      {/* Main Sharp Interactive Campus Artwork Frame */}
       <div
-        className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 ${
-          isNight
-            ? 'bg-gradient-to-t from-slate-950/40 via-transparent to-blue-950/20'
-            : 'bg-gradient-to-t from-amber-950/10 via-transparent to-transparent'
-        }`}
-      />
-
-      {/* Rain Particle Effect */}
-      <RainCanvas enabled={isRain} />
-
-      {/* Interactive Hotspot Buttons for Every Member */}
-      {CAMPUS_HOTSPOTS.map((hotspot) => {
-        const isActive = activeHotspot?.id === hotspot.id;
-
-        return (
-          <div
-            key={hotspot.id}
-            className="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation"
-            style={{
-              left: `${hotspot.x}%`,
-              top: `${hotspot.y}%`,
-              width: `${hotspot.width}%`,
-              height: `${hotspot.height}%`
-            }}
-            onClick={() => handleHotspotClick(hotspot)}
-            title={`${hotspot.groupName} (${hotspot.subName}) — আড্ডা শুনুন`}
-          >
-            {/* Clickable Area Indicator & Soft Ring */}
-            <div
-              className={`w-full h-full rounded-2xl transition-all duration-300 flex items-center justify-center relative ${
-                isActive
-                  ? 'ring-2 ring-amber-400 bg-amber-400/30 shadow-lg'
-                  : 'hover:bg-amber-400/20 group-hover:ring-1 group-hover:ring-amber-300/50'
-              }`}
-            >
-              {/* Subtle Pulsing Hint Dot for Easy Detection */}
-              <span
-                className={`absolute w-2 h-2 rounded-full transition-opacity ${
-                  isActive
-                    ? 'bg-amber-400 scale-125'
-                    : 'bg-amber-300/60 group-hover:bg-amber-300 group-hover:scale-110'
-                }`}
-              />
-
-              {/* Central Guitarist Badges & Music Notes */}
-              {hotspot.id === 'guitarist' && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 p-1.5 rounded-full shadow-lg animate-bounce group-hover:scale-110 transition z-30">
-                  <Music size={14} className={isPlaying ? 'animate-spin' : ''} />
-                </div>
-              )}
-
-              {hotspot.id === 'tea_cups' && (
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600/90 text-white p-1 rounded-full shadow-lg group-hover:scale-110 transition z-30">
-                  <Coffee size={12} />
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs opacity-75 animate-steam">
-                    ♨️
-                  </span>
-                </div>
-              )}
-
-              {hotspot.id === 'hanging_lamp' && (
-                <div
-                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 p-1.5 rounded-full shadow-lg transition z-30 ${
-                    isNight
-                      ? 'bg-yellow-400 text-slate-900 animate-pulseGlow'
-                      : 'bg-slate-700/80 text-yellow-300'
-                  }`}
-                >
-                  <Lightbulb size={13} />
-                </div>
-              )}
-
-              {/* Music notes floating when music plays */}
-              {hotspot.id === 'guitarist' && isPlaying && (
-                <>
-                  <span className="absolute -top-6 left-2 text-amber-300 text-xs sm:text-sm animate-floatNote pointer-events-none">
-                    🎵
-                  </span>
-                  <span
-                    className="absolute -top-8 right-2 text-yellow-200 text-xs animate-floatNote pointer-events-none"
-                    style={{ animationDelay: '1s' }}
-                  >
-                    🎶
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Render Active Character Speech Bubble at Scene Root (Guaranteed Zero Cutoff) */}
-      {activeHotspot && (
-        <CharacterBubble
-          hotspot={activeHotspot}
-          conversation={conversation}
-          onClose={() => setActiveHotspot(null)}
+        className="relative h-full aspect-[686/1024] max-w-full flex items-center justify-center shadow-2xl touch-manipulation select-none overflow-hidden"
+      >
+        {/* Base Artwork - Day Mode */}
+        <img
+          src="./images/campus-day.jpg"
+          alt="Southeast University Campus Adda - Day"
+          className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-1000 ${
+            isNight ? 'opacity-0' : 'opacity-100'
+          }`}
         />
-      )}
+
+        {/* Base Artwork - Night Mode */}
+        <img
+          src="./images/campus-night.jpg"
+          alt="Southeast University Campus Adda - Night"
+          className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-1000 ${
+            isNight ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+
+        {/* Ambient Lighting Gradient Overlay */}
+        <div
+          className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 ${
+            isNight
+              ? 'bg-gradient-to-t from-slate-950/40 via-transparent to-blue-950/20'
+              : 'bg-gradient-to-t from-amber-950/10 via-transparent to-transparent'
+          }`}
+        />
+
+        {/* Rain Particle Effect */}
+        <RainCanvas enabled={isRain} />
+
+        {/* Interactive Hotspot Buttons for Every Member */}
+        {CAMPUS_HOTSPOTS.map((hotspot) => {
+          const isActive = activeHotspot?.id === hotspot.id;
+
+          return (
+            <div
+              key={hotspot.id}
+              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation"
+              style={{
+                left: `${hotspot.x}%`,
+                top: `${hotspot.y}%`,
+                width: `${hotspot.width}%`,
+                height: `${hotspot.height}%`
+              }}
+              onClick={() => handleHotspotClick(hotspot)}
+              title={`${hotspot.groupName} (${hotspot.subName}) — আড্ডা শুনুন`}
+            >
+              {/* Clickable Area Indicator & Soft Ring */}
+              <div
+                className={`w-full h-full rounded-2xl transition-all duration-300 flex items-center justify-center relative ${
+                  isActive
+                    ? 'ring-2 ring-amber-400 bg-amber-400/30 shadow-lg'
+                    : 'hover:bg-amber-400/20 group-hover:ring-1 group-hover:ring-amber-300/50'
+                }`}
+              >
+                {/* Subtle Pulsing Hint Dot for Easy Detection */}
+                <span
+                  className={`absolute w-2 h-2 rounded-full transition-opacity ${
+                    isActive
+                      ? 'bg-amber-400 scale-125'
+                      : 'bg-amber-300/60 group-hover:bg-amber-300 group-hover:scale-110'
+                  }`}
+                />
+
+                {/* Central Guitarist Badges & Music Notes */}
+                {hotspot.id === 'guitarist' && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 p-1.5 rounded-full shadow-lg animate-bounce group-hover:scale-110 transition z-30">
+                    <Music size={14} className={isPlaying ? 'animate-spin' : ''} />
+                  </div>
+                )}
+
+                {hotspot.id === 'tea_cups' && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600/90 text-white p-1 rounded-full shadow-lg group-hover:scale-110 transition z-30">
+                    <Coffee size={12} />
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs opacity-75 animate-steam">
+                      ♨️
+                    </span>
+                  </div>
+                )}
+
+                {hotspot.id === 'hanging_lamp' && (
+                  <div
+                    className={`absolute -bottom-2 left-1/2 -translate-x-1/2 p-1.5 rounded-full shadow-lg transition z-30 ${
+                      isNight
+                        ? 'bg-yellow-400 text-slate-900 animate-pulseGlow'
+                        : 'bg-slate-700/80 text-yellow-300'
+                    }`}
+                  >
+                    <Lightbulb size={13} />
+                  </div>
+                )}
+
+                {/* Music notes floating when music plays */}
+                {hotspot.id === 'guitarist' && isPlaying && (
+                  <>
+                    <span className="absolute -top-6 left-2 text-amber-300 text-xs sm:text-sm animate-floatNote pointer-events-none">
+                      🎵
+                    </span>
+                    <span
+                      className="absolute -top-8 right-2 text-yellow-200 text-xs animate-floatNote pointer-events-none"
+                      style={{ animationDelay: '1s' }}
+                    >
+                      🎶
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Render Active Character Speech Bubble Clamped Safely in Canvas */}
+        {activeHotspot && (
+          <CharacterBubble
+            hotspot={activeHotspot}
+            conversation={conversation}
+            onClose={() => setActiveHotspot(null)}
+          />
+        )}
+      </div>
     </div>
   );
 };

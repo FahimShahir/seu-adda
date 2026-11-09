@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { useAmbientAudio } from './hooks/useAmbientAudio';
@@ -65,7 +65,7 @@ export function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-1000 ${
+    <div className={`relative w-screen h-[100dvh] overflow-hidden select-none transition-colors duration-1000 ${
       isNight ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'
     }`}>
       {/* Hidden YouTube Iframe Audio Host */}
@@ -75,7 +75,7 @@ export function App() {
         className="fixed bottom-0 right-0 w-2 h-2 opacity-[0.01] pointer-events-none z-0 overflow-hidden"
       />
 
-      {/* Top Header Navigation */}
+      {/* Floating Top Header Navigation (Directly Over Artwork) */}
       <HeaderBar
         onlineCount={onlineCount}
         isNight={isNight}
@@ -86,28 +86,25 @@ export function App() {
         onCheers={handleCheers}
       />
 
-      {/* Main Campus Scene Container */}
-      <main className="flex-1 flex flex-col items-center justify-start p-2 pb-20 sm:pb-24 overflow-x-hidden">
-        {/* Dynamic Adda Mood / Topic Selector */}
-        <AddaMoodSelector
-          currentMood={currentMood}
-          onSelectMood={setCurrentMood}
-        />
+      {/* Floating Adda Mood / Topic Selector (Directly Over Artwork) */}
+      <AddaMoodSelector
+        currentMood={currentMood}
+        onSelectMood={setCurrentMood}
+      />
 
-        {/* Central Interactive Campus Art Canvas */}
-        <CampusScene
-          isNight={isNight}
-          isRain={isRain}
-          isPlaying={playerState.isPlaying}
-          currentMood={currentMood}
-          onToggleNight={() => setIsNight(prev => !prev)}
-          onTogglePlay={togglePlay}
-          onGuitarStrum={playGuitarStrum}
-          onTeaClink={playTeaClink}
-        />
-      </main>
+      {/* Full-Viewport Campus Scene Canvas (100% Screen Height & Widescreen Ambient Blur) */}
+      <CampusScene
+        isNight={isNight}
+        isRain={isRain}
+        isPlaying={playerState.isPlaying}
+        currentMood={currentMood}
+        onToggleNight={() => setIsNight(prev => !prev)}
+        onTogglePlay={togglePlay}
+        onGuitarStrum={playGuitarStrum}
+        onTeaClink={playTeaClink}
+      />
 
-      {/* Sticky Bottom Player Controls */}
+      {/* Floating Bottom Audio Player Capsule (Directly Over Artwork Grass) */}
       <PlayerControls
         playerState={playerState}
         isNight={isNight}
