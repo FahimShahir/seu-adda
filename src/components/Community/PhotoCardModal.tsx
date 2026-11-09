@@ -877,21 +877,30 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn select-none">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn select-none"
+    >
       <div className="relative w-full max-w-5xl bg-slate-900 border border-amber-500/40 rounded-3xl p-3 sm:p-5 shadow-2xl text-slate-100 max-h-[96vh] flex flex-col no-scrollbar overflow-hidden">
         
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2.5">
-          <div className="flex items-center gap-2 text-amber-400 font-bold text-sm sm:text-base">
-            <Sparkles size={18} />
-            <span>ক্যাম্পাস সিন ফটো কার্ড ও স্পিচ বাবল জেনারেটর 📸</span>
+        {/* Header with Mobile-Safe Responsive Title and Prominent Close Button */}
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2.5 gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-amber-400 font-bold text-xs sm:text-base min-w-0 flex-1">
+            <Sparkles size={17} className="shrink-0 text-amber-400" />
+            <span className="truncate">
+              ক্যাম্পাস ফটো কার্ড ও স্পিচ বাবল 📸
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition"
+            className="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-full border border-slate-700 transition shrink-0 active:scale-95 flex items-center gap-1"
             aria-label="বন্ধ করুন"
+            title="বন্ধ করুন"
           >
-            <X size={20} />
+            <X size={18} />
+            <span className="hidden sm:inline text-xs font-medium pr-1">বন্ধ করুন</span>
           </button>
         </div>
 
@@ -1334,6 +1343,16 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                   <span>ছবি ক্লিপবোর্ডে কপি করুন</span>
                 </>
               )}
+            </button>
+
+            {/* Mobile-Friendly Full Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full max-w-[340px] mt-1 py-2 px-3 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
+            >
+              <X size={15} className="text-amber-400" />
+              <span>বন্ধ করুন (Close)</span>
             </button>
 
           </div>
