@@ -1,11 +1,12 @@
 import React from 'react';
-import { Camera, Sparkles } from 'lucide-react';
-import { ActiveSpeechBubble } from '../../types/room';
+import { Camera } from 'lucide-react';
+import { ActiveSpeechBubble, CampusZone } from '../../types/room';
 
 interface LiveRoomSpeechBubbleProps {
   bubble: ActiveSpeechBubble;
   x: number; // Character center X percentage (0 - 100)
   y: number; // Character center Y percentage (0 - 100)
+  zone?: CampusZone;
   isMine: boolean;
   onCapturePhotoCard?: (speaker: string, text: string) => void;
 }
@@ -14,33 +15,50 @@ export const LiveRoomSpeechBubble: React.FC<LiveRoomSpeechBubbleProps> = ({
   bubble,
   x,
   y,
+  zone = 'foreground',
   isMine,
   onCapturePhotoCard
 }) => {
   // Clamping calculation for bubble positioning:
   // Character is at percentage (x, y)
-  // We place the bubble above the character (bottom = 100 - y + offset)
-  const bottomOffset = Math.min(92, 100 - y + 6);
+  // We place the bubble above the character with perspective offset
+  const offset = zone === 'background' ? 4 : zone === 'midground' ? 5 : 6;
+  const bottomOffset = Math.min(92, 100 - y + offset);
+
+  // Depth-aware scaling and width
+  const scaleClass =
+    zone === 'background'
+      ? 'scale-[0.84] origin-bottom'
+      : zone === 'midground'
+      ? 'scale-[0.92] origin-bottom'
+      : 'scale-100 origin-bottom';
+
+  const widthClass =
+    zone === 'background'
+      ? 'w-[200px] xs:w-[220px] sm:w-[250px]'
+      : zone === 'midground'
+      ? 'w-[210px] xs:w-[235px] sm:w-[265px]'
+      : 'w-[220px] xs:w-[250px] sm:w-[280px]';
 
   // Horizontal clamping: if x < 28%, align to left; if x > 72%, align to right; else center
   let horizontalStyle: React.CSSProperties = {};
   let pointerStyle: React.CSSProperties = {};
 
   if (x < 28) {
-    horizontalStyle.left = '4%';
-    pointerStyle.left = `${Math.max(12, Math.min(80, (x - 4) * 3))}%`;
+    horizontalStyle.left = '3%';
+    pointerStyle.left = `${Math.max(12, Math.min(80, (x - 3) * 3.2))}%`;
   } else if (x > 72) {
-    horizontalStyle.right = '4%';
-    pointerStyle.right = `${Math.max(12, Math.min(80, (96 - x) * 3))}%`;
+    horizontalStyle.right = '3%';
+    pointerStyle.right = `${Math.max(12, Math.min(80, (97 - x) * 3.2))}%`;
   } else {
-    horizontalStyle.left = `${Math.max(4, Math.min(65, x - 18))}%`;
+    horizontalStyle.left = `${Math.max(3, Math.min(65, x - 18))}%`;
     pointerStyle.left = '50%';
     pointerStyle.transform = 'translateX(-50%)';
   }
 
   return (
     <div
-      className="absolute z-30 pointer-events-auto transition-all animate-pop w-[220px] xs:w-[250px] sm:w-[280px] max-w-[88%]"
+      className={`absolute z-30 pointer-events-auto transition-all animate-pop max-w-[88%] ${widthClass} ${scaleClass}`}
       style={{
         bottom: `${bottomOffset}%`,
         ...horizontalStyle,
@@ -106,3 +124,4 @@ export const LiveRoomSpeechBubble: React.FC<LiveRoomSpeechBubbleProps> = ({
     </div>
   );
 };
+

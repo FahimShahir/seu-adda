@@ -12,7 +12,7 @@ import {
   Plus,
   Play
 } from 'lucide-react';
-import { AddaRoom, CAMPUS_CHARACTERS } from '../../types/room';
+import { AddaRoom, CAMPUS_CHARACTERS, CampusZone } from '../../types/room';
 
 interface PrivateRoomModalProps {
   isOpen: boolean;
@@ -61,6 +61,7 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
   const [userName, setUserName] = useState(currentUser.name || '');
   const [userDept, setUserDept] = useState(currentUser.dept || 'CSE');
   const [gender, setGender] = useState<'male' | 'female'>(currentUser.gender || 'male');
+  const [pickerZone, setPickerZone] = useState<CampusZone>('foreground');
   const [characterId, setCharacterId] = useState<string>(
     currentUser.characterId || (currentUser.gender === 'female' ? 'green_saree_girl' : 'guitarist')
   );
@@ -93,7 +94,8 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
     setGender(newGender);
     const currentChar = CAMPUS_CHARACTERS.find((c) => c.id === characterId);
     if (!currentChar || currentChar.gender !== newGender) {
-      setCharacterId(newGender === 'female' ? 'green_saree_girl' : 'guitarist');
+      const matchInZone = CAMPUS_CHARACTERS.find((c) => c.gender === newGender && c.zone === pickerZone);
+      setCharacterId(matchInZone ? matchInZone.id : newGender === 'female' ? 'green_saree_girl' : 'guitarist');
     }
   };
 
@@ -289,13 +291,41 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   </div>
                 </div>
 
-                {/* Character Picker */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-amber-400">
-                    ইমেজে আপনার শুরুর ক্যারেক্টার (পরে বদলাতে পারবেন):
-                  </label>
+                {/* Character Picker with Zone Tabs */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-amber-400">
+                      ইমেজে আপনার ক্যারেক্টার (৩৫ সদস্য):
+                    </label>
+                  </div>
+                  {/* Zone Tabs */}
+                  <div className="flex bg-slate-950/70 p-1 rounded-xl gap-1 border border-white/5">
+                    {[
+                      { id: 'foreground' as CampusZone, label: '🥇 সামনে' },
+                      { id: 'midground' as CampusZone, label: '🥈 সিঁড়িতে' },
+                      { id: 'background' as CampusZone, label: '🥉 গেটে' }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          setPickerZone(tab.id);
+                          const firstMatch = CAMPUS_CHARACTERS.find((c) => c.gender === gender && c.zone === tab.id);
+                          if (firstMatch) setCharacterId(firstMatch.id);
+                        }}
+                        className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition ${
+                          pickerZone === tab.id
+                            ? 'bg-amber-500/30 border border-amber-400/60 text-amber-300 font-bold'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
-                    {CAMPUS_CHARACTERS.filter((c) => c.gender === gender).map((c) => {
+                    {CAMPUS_CHARACTERS.filter((c) => c.gender === gender && c.zone === pickerZone).map((c) => {
                       const isSelected = c.id === characterId;
                       return (
                         <button
@@ -304,8 +334,8 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                           onClick={() => setCharacterId(c.id)}
                           className={`flex items-center gap-1.5 p-1.5 rounded-xl text-left border transition text-xs ${
                             isSelected
-                              ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-300'
+                              ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-sm'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
                         >
                           <span className="text-sm shrink-0">{c.emoji}</span>
@@ -412,13 +442,41 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   </div>
                 </div>
 
-                {/* Character Picker */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-amber-400">
-                    ইমেজে আপনার ক্যারেক্টার:
-                  </label>
+                {/* Character Picker with Zone Tabs */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-amber-400">
+                      ইমেজে আপনার ক্যারেক্টার (৩৫ সদস্য):
+                    </label>
+                  </div>
+                  {/* Zone Tabs */}
+                  <div className="flex bg-slate-950/70 p-1 rounded-xl gap-1 border border-white/5">
+                    {[
+                      { id: 'foreground' as CampusZone, label: '🥇 সামনে' },
+                      { id: 'midground' as CampusZone, label: '🥈 সিঁড়িতে' },
+                      { id: 'background' as CampusZone, label: '🥉 গেটে' }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          setPickerZone(tab.id);
+                          const firstMatch = CAMPUS_CHARACTERS.find((c) => c.gender === gender && c.zone === tab.id);
+                          if (firstMatch) setCharacterId(firstMatch.id);
+                        }}
+                        className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition ${
+                          pickerZone === tab.id
+                            ? 'bg-amber-500/30 border border-amber-400/60 text-amber-300 font-bold'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
-                    {CAMPUS_CHARACTERS.filter((c) => c.gender === gender).map((c) => {
+                    {CAMPUS_CHARACTERS.filter((c) => c.gender === gender && c.zone === pickerZone).map((c) => {
                       const isSelected = c.id === characterId;
                       return (
                         <button
@@ -427,8 +485,8 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                           onClick={() => setCharacterId(c.id)}
                           className={`flex items-center gap-1.5 p-1.5 rounded-xl text-left border transition text-xs ${
                             isSelected
-                              ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-300'
+                              ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-sm'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
                         >
                           <span className="text-sm shrink-0">{c.emoji}</span>

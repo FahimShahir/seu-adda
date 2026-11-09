@@ -129,11 +129,23 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
           const isActive = activeHotspot?.id === hotspot.id;
           const owner = roomParticipants?.find((p) => p.characterId === hotspot.id);
           const isMyChar = owner && owner.id === currentUserId;
+          const zIndexClass =
+            hotspot.zone === 'foreground'
+              ? 'z-30'
+              : hotspot.zone === 'midground'
+              ? 'z-25'
+              : 'z-20';
+          const badgeScale =
+            hotspot.zone === 'background'
+              ? 'scale-75 -top-6'
+              : hotspot.zone === 'midground'
+              ? 'scale-90 -top-6'
+              : 'scale-100 -top-7';
 
           return (
             <div
               key={hotspot.id}
-              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation"
+              className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation ${zIndexClass}`}
               style={{
                 left: `${hotspot.x}%`,
                 top: `${hotspot.y}%`,
@@ -146,7 +158,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
               {/* Floating Room Character Owner Badge */}
               {owner && (
                 <div
-                  className={`absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shadow-lg flex items-center gap-1 border transition-all z-30 pointer-events-none select-none ${
+                  className={`absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shadow-lg flex items-center gap-1 border transition-all z-30 pointer-events-none select-none origin-bottom ${badgeScale} ${
                     isMyChar
                       ? 'bg-amber-500 text-slate-950 border-amber-300 ring-2 ring-amber-400/40 animate-pulse'
                       : 'bg-slate-900/90 text-emerald-300 border-emerald-400/60'
@@ -237,6 +249,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
                 bubble={bubble}
                 x={charHotspot.x}
                 y={charHotspot.y}
+                zone={charHotspot.zone}
                 isMine={bubble.senderName === roomParticipants?.find((p) => p.id === currentUserId)?.name}
                 onCapturePhotoCard={onCapturePhotoCard}
               />

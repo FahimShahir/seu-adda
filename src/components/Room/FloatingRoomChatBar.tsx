@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, RefreshCw, X, Camera, ChevronUp } from 'lucide-react';
-import { CAMPUS_CHARACTERS, CampusCharacter, RoomParticipant } from '../../types/room';
+import React, { useState, useRef } from 'react';
+import { Send, X, Camera, ChevronUp } from 'lucide-react';
+import { CAMPUS_CHARACTERS, CampusCharacter, CampusZone, RoomParticipant } from '../../types/room';
 
 interface FloatingRoomChatBarProps {
   myCharacterId: string;
@@ -12,6 +12,12 @@ interface FloatingRoomChatBarProps {
 
 const QUICK_EMOJIS = ['☕', '🎸', '💔', '📚', '🔥', '🤣', '🎉'];
 
+const ZONE_TABS: { id: CampusZone; label: string; count: number }[] = [
+  { id: 'foreground', label: '🥇 সামনে', count: 13 },
+  { id: 'midground', label: '🥈 সিঁড়িতে', count: 8 },
+  { id: 'background', label: '🥉 গেটে', count: 14 }
+];
+
 export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   myCharacterId,
   participants,
@@ -21,6 +27,8 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
 }) => {
   const [text, setText] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [activeZone, setActiveZone] = useState<CampusZone>('foreground');
+  const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const currentCharacter =
@@ -42,15 +50,28 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
     setIsPickerOpen(false);
   };
 
+  const filteredCharacters = CAMPUS_CHARACTERS.filter((c) => {
+    if (c.zone !== activeZone) return false;
+    if (genderFilter !== 'all' && c.gender !== genderFilter) return false;
+    return true;
+  });
+
+  const getZoneLabel = (zone: CampusZone) => {
+    if (zone === 'foreground') return 'সামনে';
+    if (zone === 'midground') return 'সিঁড়িতে';
+    return 'গেটে';
+  };
+
   return (
     <div className="absolute bottom-16 sm:bottom-20 left-2 sm:left-4 right-2 sm:right-4 z-40 select-none">
       
-      {/* Popover Character Switcher (Categorized into Boys & Girls) */}
+      {/* Popover Character Switcher (Categorized into 3 Zones & Gender Filters) */}
       {isPickerOpen && (
-        <div className="mb-2 bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-xl animate-fadeIn text-slate-100 max-h-[300px] overflow-y-auto no-scrollbar">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+        <div className="mb-2 bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-xl animate-fadeIn text-slate-100 max-h-[340px] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
             <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-              <span>🎭 ক্যারেক্টার বেছে নিন বা ট্রান্সফার করুন</span>
+              <span>🎭 ক্যারেক্টার ট্রান্সফার (৩৫ জন সদস্য)</span>
             </div>
             <button
               onClick={() => setIsPickerOpen(false)}
@@ -60,74 +81,97 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
             </button>
           </div>
 
-          {/* Boys Characters */}
-          <div className="mb-3">
-            <div className="text-[11px] font-semibold text-sky-400 mb-1.5">ছেলে ক্যারেক্টারসমূহ:</div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-              {CAMPUS_CHARACTERS.filter((c) => c.gender === 'male').map((char) => {
-                const isSelected = char.id === myCharacterId;
-                const owner = participants.find((p) => p.characterId === char.id);
-                const isTaken = owner && !isSelected;
-
-                return (
-                  <button
-                    key={char.id}
-                    type="button"
-                    onClick={() => handleSelectCharacter(char)}
-                    className={`flex items-center gap-1.5 p-2 rounded-xl text-left border transition text-xs ${
-                      isSelected
-                        ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-md shadow-amber-500/10'
-                        : isTaken
-                        ? 'bg-slate-900/60 border-slate-800 text-slate-400 opacity-75'
-                        : 'bg-slate-900/90 border-slate-700 hover:border-amber-400/50 text-slate-200'
-                    }`}
-                  >
-                    <span className="text-sm shrink-0">{char.emoji}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{char.name}</div>
-                      <div className="text-[9px] text-slate-400 truncate">
-                        {isTaken ? `(${owner.name})` : char.role}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Zone Navigation Tabs */}
+          <div className="flex bg-slate-900/80 p-1 rounded-xl gap-1 mb-2 border border-slate-800">
+            {ZONE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveZone(tab.id)}
+                className={`flex-1 py-1 px-1.5 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1 ${
+                  activeZone === tab.id
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={`text-[10px] px-1 rounded-full ${
+                  activeZone === tab.id ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-slate-400'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
 
-          {/* Girls Characters */}
-          <div>
-            <div className="text-[11px] font-semibold text-pink-400 mb-1.5">মেয়ে ক্যারেক্টারসমূহ:</div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-              {CAMPUS_CHARACTERS.filter((c) => c.gender === 'female').map((char) => {
-                const isSelected = char.id === myCharacterId;
-                const owner = participants.find((p) => p.characterId === char.id);
-                const isTaken = owner && !isSelected;
+          {/* Gender Filter Chips */}
+          <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+            <span className="text-[10px] text-slate-400 font-medium">ফিল্টার:</span>
+            <button
+              type="button"
+              onClick={() => setGenderFilter('all')}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition ${
+                genderFilter === 'all'
+                  ? 'bg-amber-500/25 border-amber-400 text-amber-300'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              সবাই
+            </button>
+            <button
+              type="button"
+              onClick={() => setGenderFilter('male')}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition ${
+                genderFilter === 'male'
+                  ? 'bg-sky-500/25 border-sky-400 text-sky-300'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              👦 ছেলে
+            </button>
+            <button
+              type="button"
+              onClick={() => setGenderFilter('female')}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition ${
+                genderFilter === 'female'
+                  ? 'bg-pink-500/25 border-pink-400 text-pink-300'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              👧 মেয়ে
+            </button>
+          </div>
 
-                return (
-                  <button
-                    key={char.id}
-                    type="button"
-                    onClick={() => handleSelectCharacter(char)}
-                    className={`flex items-center gap-1.5 p-2 rounded-xl text-left border transition text-xs ${
-                      isSelected
-                        ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-md shadow-amber-500/10'
-                        : isTaken
-                        ? 'bg-slate-900/60 border-slate-800 text-slate-400 opacity-75'
-                        : 'bg-slate-900/90 border-slate-700 hover:border-amber-400/50 text-slate-200'
-                    }`}
-                  >
-                    <span className="text-sm shrink-0">{char.emoji}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{char.name}</div>
-                      <div className="text-[9px] text-slate-400 truncate">
-                        {isTaken ? `(${owner.name})` : char.role}
-                      </div>
+          {/* Filtered Character Grid */}
+          <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-1.5 pr-0.5">
+            {filteredCharacters.map((char) => {
+              const isSelected = char.id === myCharacterId;
+              const owner = participants.find((p) => p.characterId === char.id);
+              const isTaken = owner && !isSelected;
+
+              return (
+                <button
+                  key={char.id}
+                  type="button"
+                  onClick={() => handleSelectCharacter(char)}
+                  className={`flex items-center gap-1.5 p-2 rounded-xl text-left border transition text-xs ${
+                    isSelected
+                      ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-md shadow-amber-500/10'
+                      : isTaken
+                      ? 'bg-slate-900/60 border-slate-800 text-slate-400 opacity-75'
+                      : 'bg-slate-900/90 border-slate-700 hover:border-amber-400/50 text-slate-200'
+                  }`}
+                >
+                  <span className="text-base shrink-0">{char.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{char.name}</div>
+                    <div className="text-[9px] text-slate-400 truncate">
+                      {isTaken ? `(${owner.name})` : char.role}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -138,15 +182,18 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
         {/* Top: Current Character Badge & Quick Emoji Reactions */}
         <div className="flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar">
           
-          {/* Character Switcher Pill */}
+          {/* Character Switcher Pill with Zone Tag */}
           <button
             type="button"
             onClick={() => setIsPickerOpen(!isPickerOpen)}
             className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold shrink-0 transition active:scale-95 shadow-sm"
-            title="ক্যারেক্টার পরিবর্তন করুন"
+            title="ক্যারেক্টার পরিবর্তন বা ট্রান্সফার করুন"
           >
             <span>{currentCharacter.emoji}</span>
             <span className="truncate max-w-[80px] sm:max-w-none">{currentCharacter.name}</span>
+            <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-200 font-medium">
+              {getZoneLabel(currentCharacter.zone)}
+            </span>
             <ChevronUp size={12} className={`transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} />
           </button>
 
@@ -200,3 +247,4 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
     </div>
   );
 };
+
