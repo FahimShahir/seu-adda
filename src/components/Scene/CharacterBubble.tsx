@@ -77,7 +77,7 @@ export const CharacterBubble: React.FC<CharacterBubbleProps> = ({
         </div>
 
         {/* Conversation Banter / Dialogue Turns */}
-        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5">
+        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5 no-scrollbar touch-pan-y">
           {conversation.map((line, idx) => {
             const isFirst = idx === 0;
             return (

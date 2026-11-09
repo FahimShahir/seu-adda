@@ -35,7 +35,7 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl text-slate-100 max-h-[85vh] overflow-y-auto">
+      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl text-slate-100 max-h-[85vh] overflow-y-auto no-scrollbar touch-pan-y">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
           <div className="flex items-center gap-2 text-amber-400 font-bold text-lg">

@@ -60,3 +60,17 @@
   animation: pulseGlow 2s infinite ease-in-out;
 }
 
+/* Hide scrollbars universally for smooth touch scrolling without ugly bottom scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+

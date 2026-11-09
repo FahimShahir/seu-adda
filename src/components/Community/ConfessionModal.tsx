@@ -89,7 +89,7 @@ export const ConfessionModal: React.FC<ConfessionModalProps> = ({
         </form>
 
         {/* Confessions List */}
-        <div className="overflow-y-auto space-y-3 flex-1 pr-1">
+        <div className="overflow-y-auto space-y-3 flex-1 pr-1 no-scrollbar touch-pan-y">
           {confessions.map((item) => (
             <div
               key={item.id}

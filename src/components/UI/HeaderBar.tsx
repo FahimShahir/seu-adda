@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MessageSquareHeart, CloudRain, Sun, Moon, Coffee, Maximize, Minimize, Sparkles, HeartCrack, BookOpen } from 'lucide-react';
+import React, { useRef } from 'react';
+import { MessageSquareHeart, CloudRain, Sun, Moon, Coffee, Sparkles, HeartCrack, BookOpen } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
 
 interface HeaderBarProps {
@@ -25,22 +25,29 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenConfessions,
   onCheers
 }) => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const moodScrollRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
 
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDraggingRef.current = true;
+    if (moodScrollRef.current) {
+      startXRef.current = e.pageX - moodScrollRef.current.offsetLeft;
+      scrollLeftRef.current = moodScrollRef.current.scrollLeft;
     }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !moodScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - moodScrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    moodScrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
   };
 
   const moods: { id: AddaMood; label: string; icon: React.ReactNode }[] = [
@@ -90,8 +97,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </div>
         </div>
 
-        {/* Center: Integrated Non-Overlapping Adda Mood Selector Pills */}
-        <div className="flex items-center gap-1 p-0.5 sm:p-1 bg-slate-900/90 border border-white/10 rounded-xl sm:rounded-full overflow-x-auto max-w-[48%] sm:max-w-none">
+        {/* Center: Integrated Touch-Scrollable Adda Mood Selector (No Bottom Scrollbars) */}
+        <div
+          ref={moodScrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          className="flex items-center gap-1 p-0.5 sm:p-1 bg-slate-900/90 border border-white/10 rounded-xl sm:rounded-full overflow-x-auto no-scrollbar touch-pan-x cursor-grab active:cursor-grabbing max-w-[55%] sm:max-w-none select-none"
+        >
           {moods.map((m) => {
             const isActive = currentMood === m.id;
             return (
@@ -157,15 +171,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             }`}
           >
             {isNight ? <Moon size={13} /> : <Sun size={13} />}
-          </button>
-
-          {/* Fullscreen Button for PC / Desktop */}
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করুন' : 'পিসিতে ফুলস্ক্রিন করুন'}
-            className="p-1.5 rounded-full border bg-slate-800/80 text-slate-300 hover:text-white border-white/10 transition active:scale-95"
-          >
-            {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
           </button>
         </div>
       </div>
