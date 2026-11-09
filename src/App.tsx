@@ -10,6 +10,7 @@ import { PlayerControls } from './components/Audio/PlayerControls';
 import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
 import { PhotoCardModal } from './components/Community/PhotoCardModal';
+import { DeveloperModal } from './components/Community/DeveloperModal';
 import { PrivateRoomModal } from './components/Room/PrivateRoomModal';
 import { FloatingRoomChatBar } from './components/Room/FloatingRoomChatBar';
 import { useAddaRoom } from './hooks/useAddaRoom';
@@ -22,6 +23,7 @@ export function App() {
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [isConfessionOpen, setIsConfessionOpen] = useState(false);
   const [isPhotoCardOpen, setIsPhotoCardOpen] = useState(false);
+  const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
   const [isRoomOpen, setIsRoomOpen] = useState(false);
   const [pendingJoinRoomId, setPendingJoinRoomId] = useState('');
   const [activeQuote, setActiveQuote] = useState<{ speaker: string; text: string } | undefined>(undefined);
@@ -193,6 +195,7 @@ export function App() {
           onOpenRoom={() => setIsRoomOpen(true)}
           onCheers={handleCheers}
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
+          onOpenDeveloper={() => setIsDeveloperOpen(true)}
         />
 
         {/* On-Screen Floating Room Chat Bar (Directly on Main Screen!) */}
@@ -243,6 +246,12 @@ export function App() {
         onAddConfession={addConfession}
         onLikeConfession={likeConfession}
         onClose={() => setIsConfessionOpen(false)}
+      />
+
+      {/* Creator & Developer Profile Modal */}
+      <DeveloperModal
+        isOpen={isDeveloperOpen}
+        onClose={() => setIsDeveloperOpen(false)}
       />
 
       {/* Polaroid / Instagram Story Photo Card Modal */}

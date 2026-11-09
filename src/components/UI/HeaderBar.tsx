@@ -10,7 +10,8 @@ import {
   ChevronDown,
   MoreHorizontal,
   Check,
-  ListMusic
+  ListMusic,
+  Code2
 } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
 import { DhakaWeather } from '../../hooks/useDhakaClockAndWeather';
@@ -27,6 +28,7 @@ interface HeaderBarProps {
   onOpenRoom: () => void;
   onCheers: () => void;
   onOpenPlaylist?: () => void;
+  onOpenDeveloper?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -40,7 +42,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenPhotoCard,
   onOpenRoom,
   onCheers,
-  onOpenPlaylist
+  onOpenPlaylist,
+  onOpenDeveloper
 }) => {
   const [isMoodOpen, setIsMoodOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -105,13 +108,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     <header className="absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 z-40 bg-slate-950/90 backdrop-blur-2xl border border-white/15 px-2.5 sm:px-3 py-1.5 rounded-2xl shadow-2xl text-white touch-manipulation">
       <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full min-w-0">
         
-        {/* Left: Brand & Live Presence */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/20 text-xs sm:text-sm shrink-0">
+        {/* Left: Brand & Live Presence (Clickable for Developer Profile) */}
+        <div
+          onClick={onOpenDeveloper}
+          className="flex items-center gap-1.5 shrink-0 cursor-pointer group select-none"
+          title="👨‍💻 ক্রিয়েটর ও ডেভেলপার পরিচিতি দেখতে ক্লিক করুন"
+        >
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/20 text-xs sm:text-sm shrink-0 group-hover:scale-105 transition-transform">
             ☕
           </div>
           <div className="min-w-0">
-            <h1 className="font-bold text-xs sm:text-sm text-slate-100 flex items-center gap-1 leading-tight" title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা">
+            <h1 className="font-bold text-xs sm:text-sm text-slate-100 flex items-center gap-1 leading-tight group-hover:text-amber-300 transition-colors" title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা">
               <span>SEU Adda</span>
             </h1>
             <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-400 leading-tight">
@@ -311,6 +318,29 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     <div className="min-w-0">
                       <div className="font-semibold text-slate-100">গান ও প্লেলিস্ট বাছুন</div>
                       <div className="text-[10px] text-slate-400 truncate">ইউটিউব ও কাস্টম অডিও রেডিও 🎶</div>
+                    </div>
+                  </button>
+                )}
+
+                {/* Developer Profile Modal */}
+                {onOpenDeveloper && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenDeveloper();
+                      setIsMoreOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-slate-200 hover:bg-slate-900/90 hover:text-white transition cursor-pointer border-t border-white/5 pt-2"
+                  >
+                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 shrink-0">
+                      <Code2 size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-100 flex items-center gap-1.5">
+                        <span>👨‍💻 ডেভেলপার পরিচিতি</span>
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/25 text-amber-300 font-bold border border-amber-500/35">ক্রিয়েটর</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">শাহীর • ইমেইল, ফেসবুক ও হোয়াটসঅ্যাপ</div>
                     </div>
                   </button>
                 )}
