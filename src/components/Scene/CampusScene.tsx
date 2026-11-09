@@ -61,10 +61,10 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
 
   return (
     <div
-      className="relative mx-auto rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 aspect-[1684/2528] touch-manipulation select-none"
+      className="relative mx-auto rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 aspect-[686/1024] touch-manipulation select-none"
       style={{
         width: '100%',
-        maxWidth: 'min(100%, calc((100dvh - 135px) * 1684 / 2528))',
+        maxWidth: 'min(100%, calc((100dvh - 135px) * 686 / 1024))',
         maxHeight: 'calc(100dvh - 135px)'
       }}
     >
