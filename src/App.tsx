@@ -240,16 +240,18 @@ export function App() {
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
         />
 
-        {/* Developer Publicity Watermark (Fahim Shahir) */}
+        {/* Developer Publicity & Alumni Treat Watermark (Fahim Shahir) */}
         <div className="absolute bottom-2.5 left-3 z-20 pointer-events-auto hidden md:block">
           <button
             type="button"
             onClick={() => setIsDeveloperOpen(true)}
-            className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-white/10 hover:border-amber-500/50 backdrop-blur-md text-[11px] text-slate-300 hover:text-amber-300 transition shadow-lg cursor-pointer"
-            title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর ও ডেভেলপার"
+            className="group flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-amber-500/40 hover:border-amber-400 backdrop-blur-md text-[11px] text-slate-200 transition shadow-lg shadow-amber-500/10 cursor-pointer"
+            title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর ও ডেভেলপার — কফি ট্রিট দিন"
           >
-            <span>Crafted with ❤️ by</span>
-            <span className="font-bold text-amber-400 group-hover:underline">Fahim Shahir</span>
+            <span>Crafted with ❤️ by <strong className="text-amber-400 group-hover:underline">Fahim Shahir</strong></span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E2136E]/25 hover:bg-[#E2136E]/35 text-pink-300 border border-[#E2136E]/50 font-bold flex items-center gap-1 shadow-xs transition">
+              <span>☕ ট্রিট দিন</span>
+            </span>
           </button>
         </div>
       </main>

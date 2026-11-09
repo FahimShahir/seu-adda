@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { X, Mail, ExternalLink, Copy, Check, Heart, Code2, MessageCircle, Sparkles } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import {
+  X,
+  Mail,
+  ExternalLink,
+  Copy,
+  Check,
+  Heart,
+  Code2,
+  MessageCircle,
+  Sparkles,
+  GraduationCap,
+  Coffee,
+  Gift
+} from 'lucide-react';
 
 interface DeveloperModalProps {
   isOpen: boolean;
@@ -15,6 +29,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
   const facebookUrl = 'https://www.facebook.com/profile.php?id=61589135607170';
   const whatsappNumber = '01969091751';
   const whatsappUrl = 'https://wa.me/8801969091751';
+  const bkashNumber = '01969091751';
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -22,6 +37,22 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
     setTimeout(() => {
       setCopiedField(null);
     }, 2000);
+  };
+
+  const handleBkashCopy = (amountLabel?: string) => {
+    navigator.clipboard.writeText(bkashNumber);
+    setCopiedField('bkash');
+    try {
+      confetti({
+        particleCount: 45,
+        spread: 65,
+        origin: { y: 0.55, x: 0.5 },
+        colors: ['#E2136E', '#F59E0B', '#10B981', '#38BDF8', '#ffffff']
+      });
+    } catch (_) {}
+    setTimeout(() => {
+      setCopiedField(null);
+    }, 3000);
   };
 
   return (
@@ -83,6 +114,100 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
           <p className="text-[11px] text-slate-400 mt-2 max-w-xs leading-relaxed">
             সাউথইস্ট বিশ্ববিদ্যালয়ের প্রাণবন্ত ক্যাম্পাস আড্ডা, গান ও স্মৃতিকে চিরভাস্বর করে রাখার জন্য এই প্ল্যাটফর্মটি তৈরি করা হয়েছে। ☕❤️
           </p>
+        </div>
+
+        {/* Featured: Alumni Love & Coffee Fund Card (bKash Support) */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#E2136E]/20 via-purple-950/30 to-amber-950/25 border border-[#E2136E]/40 p-3.5 sm:p-4 mb-4 shadow-xl shadow-[#E2136E]/10">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-pink-300">
+              <GraduationCap size={16} className="text-[#E2136E]" />
+              <span>অ্যালামনাই কর্নার • কফি ট্রিট ☕❤️</span>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E2136E] text-white shadow-sm flex items-center gap-1">
+              <span>বিকাশ Personal</span>
+            </span>
+          </div>
+
+          <p className="text-[11px] text-slate-300 leading-relaxed mb-3">
+            সাউথইস্টের প্রিয় প্রাক্তন ভাইয়া ও আপুরা! 🎓 ক্যাম্পাসের সিঁড়িতে বসে গিটারের গান আর এক কাপ চায়ের আড্ডার সোনালী দিনগুলো মিস করেন? প্রিয় ক্যাম্পাসের আড্ডাকে কোনো বিজ্ঞাপন ছাড়া চিরদিন সচল রাখতে এবং সার্ভার খরচে — জুনিয়র ডেভেলপার ছোটভাইকে এক কাপ কফি ট্রিট দিয়ে ভালোবাসা জানাতে পারেন!
+          </p>
+
+          {/* bKash Number & Copy Action Box */}
+          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-white/10 mb-2.5">
+            <div className="min-w-0">
+              <div className="text-[10px] text-pink-300/80 font-medium">
+                বিকাশ সেন্ড মানি (Personal Number):
+              </div>
+              <div className="text-sm sm:text-base font-black text-white tracking-wider font-mono">
+                {bkashNumber}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleBkashCopy()}
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-md shrink-0 ${
+                copiedField === 'bkash'
+                  ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/20'
+                  : 'bg-gradient-to-r from-[#E2136E] to-pink-600 hover:from-[#c2105e] hover:to-pink-500 text-white shadow-[#E2136E]/30'
+              }`}
+              title="বিকাশ নম্বর কপি করুন"
+            >
+              {copiedField === 'bkash' ? (
+                <>
+                  <Check size={14} className="stroke-[3]" />
+                  <span>কপি হয়েছে 🎉</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={13} />
+                  <span>নম্বর কপি</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Fun Campus Treat Suggestion Chips */}
+          <div className="space-y-1">
+            <div className="text-[10px] text-slate-400 font-medium">ক্যাম্পাস চায়ের ট্রিট বেছে নিন (ক্লিক করলেই নম্বর কপি হবে):</div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleBkashCopy('চা ২০৳')}
+                className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-amber-500/40 text-[10px] text-slate-300 hover:text-amber-300 flex items-center justify-between transition cursor-pointer"
+                title="১ কাপ রং চা ট্রিট দিন"
+              >
+                <span>☕ ১ কাপ রং চা</span>
+                <span className="font-bold text-amber-400">২০৳</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBkashCopy('দুধ চা ৫০৳')}
+                className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-amber-500/40 text-[10px] text-slate-300 hover:text-amber-300 flex items-center justify-between transition cursor-pointer"
+                title="স্পেশাল দুধ চা ট্রিট দিন"
+              >
+                <span>🥛 স্পেশাল দুধ চা</span>
+                <span className="font-bold text-amber-400">৫০৳</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBkashCopy('কফি ১০০৳')}
+                className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-pink-500/40 text-[10px] text-slate-300 hover:text-pink-300 flex items-center justify-between transition cursor-pointer"
+                title="কোল্ড কফি ট্রিট দিন"
+              >
+                <span>☕☕ কোল্ড কফি</span>
+                <span className="font-bold text-pink-400">১০০৳</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBkashCopy('স্পনসর ২০০৳+')}
+                className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-emerald-500/40 text-[10px] text-slate-300 hover:text-emerald-300 flex items-center justify-between transition cursor-pointer"
+                title="ক্যাম্পাস আড্ডার বড় স্পনসর"
+              >
+                <span>🎸 আড্ডার স্পনসর</span>
+                <span className="font-bold text-emerald-400">২০০৳+</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Contact Links Grid */}

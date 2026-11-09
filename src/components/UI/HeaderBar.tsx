@@ -11,7 +11,8 @@ import {
   MoreHorizontal,
   Check,
   ListMusic,
-  Code2
+  Code2,
+  Heart
 } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
 import { DhakaWeather } from '../../hooks/useDhakaClockAndWeather';
@@ -356,6 +357,32 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   </button>
                 )}
 
+                {/* Alumni Love & Coffee Treat Fund (bKash) */}
+                {onOpenDeveloper && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenDeveloper();
+                      setIsMoreOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs bg-gradient-to-r from-pink-500/15 via-[#E2136E]/15 to-amber-500/10 hover:from-pink-500/25 hover:to-amber-500/20 border border-[#E2136E]/30 transition cursor-pointer"
+                    title="অ্যালামনাই ভালোবাসা ও কফি ফান্ড (বিকাশ)"
+                  >
+                    <div className="p-1.5 rounded-lg bg-[#E2136E]/20 text-pink-400 shrink-0">
+                      <Heart size={14} className="fill-[#E2136E] text-[#E2136E] animate-pulse" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-pink-300 flex items-center justify-between">
+                        <span>অ্যালামনাই কফি ফান্ড</span>
+                        <span className="text-[9px] bg-[#E2136E] text-white px-1.5 py-0.2 rounded-full font-black shadow-xs">
+                          বিকাশ
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-300 truncate">ক্যাম্পাস আড্ডা সচল রাখতে ট্রিট দিন ☕</div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Developer Profile Modal */}
                 {onOpenDeveloper && (
                   <button
@@ -374,7 +401,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                         <span>👨‍💻 ডেভেলপার পরিচিতি</span>
                         <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/25 text-amber-300 font-bold border border-amber-500/35">ক্রিয়েটর</span>
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">শাহীর • ইমেইল, ফেসবুক ও হোয়াটসঅ্যাপ</div>
+                      <div className="text-[10px] text-slate-400 truncate">ফাহিম শাহীর • ইমেইল, ফেসবুক ও হোয়াটসঅ্যাপ</div>
                     </div>
                   </button>
                 )}
