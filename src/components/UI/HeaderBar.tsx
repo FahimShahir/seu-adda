@@ -111,11 +111,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             ☕
           </div>
           <div className="min-w-0">
-            <h1 className="font-bold text-xs sm:text-sm text-slate-100 flex items-center gap-1 leading-tight">
+            <h1 className="font-bold text-xs sm:text-sm text-slate-100 flex items-center gap-1 leading-tight" title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা">
               <span>SEU Adda</span>
-              <span className="hidden xl:inline-block text-[9px] font-normal px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                সাউথইস্ট বিশ্ববিদ্যালয়
-              </span>
             </h1>
             <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-400 leading-tight">
               <span className="flex items-center gap-1 shrink-0">
@@ -123,9 +120,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <span><strong className="text-emerald-400">{onlineCount}</strong> জন</span>
               </span>
               {dhakaTime && (
-                <span className="hidden sm:inline-flex items-center gap-1 px-1 py-0.2 rounded bg-slate-900/90 text-amber-300/90 border border-white/10 font-medium shrink-0">
-                  <span>🕒 {dhakaTime}</span>
-                  {weather && <span>• {weather.icon} {weather.temperature}°C</span>}
+                <span className="hidden sm:inline text-amber-300/80 font-medium shrink-0">
+                  • {dhakaTime}
                 </span>
               )}
             </div>
@@ -140,13 +136,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               setIsMoodOpen((prev) => !prev);
               setIsMoreOpen(false);
             }}
-            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-amber-300 border border-amber-500/35 text-xs font-semibold shadow-sm transition active:scale-95 cursor-pointer"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-amber-300 border border-amber-500/35 text-[11px] sm:text-xs font-semibold shadow-sm transition active:scale-95 cursor-pointer"
             title="আড্ডার মেজাজ বা মুড পরিবর্তন করুন"
           >
             <span className="shrink-0">{activeMoodObj.icon}</span>
-            <span className="font-bold text-[11px] sm:text-xs">{activeMoodObj.label}</span>
+            <span className="font-bold">{activeMoodObj.label}</span>
             <ChevronDown
-              size={11}
+              size={10}
               className={`text-amber-400/80 transition-transform duration-200 ${
                 isMoodOpen ? 'rotate-180' : ''
               }`}
@@ -192,21 +188,21 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
 
         {/* Right: Primary Action Controls & More Options Dropdown */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {/* 1. Private Adda Room Button */}
           <button
             type="button"
             onClick={onOpenRoom}
-            className={`flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border transition active:scale-95 shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1 text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border transition active:scale-95 shrink-0 cursor-pointer ${
               activeRoom
                 ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-md shadow-amber-500/20'
                 : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-white/10'
             }`}
             title={activeRoom ? `আড্ডা রুম: ${activeRoom.name}` : 'পার্সোনাল আড্ডা রুম তৈরি বা জয়েন করুন'}
           >
-            <Users size={13} className={activeRoom ? 'text-amber-400' : 'text-emerald-400'} />
-            <span className="hidden sm:inline text-[11px] font-semibold">
-              {activeRoom ? activeRoom.name.slice(0, 8) : 'রুম'}
+            <Users size={12} className={activeRoom ? 'text-amber-400' : 'text-emerald-400'} />
+            <span className="hidden sm:inline font-semibold">
+              {activeRoom ? activeRoom.name.slice(0, 6) : 'রুম'}
             </span>
             {activeRoom && (
               <span className="text-[9px] px-1 rounded-full bg-amber-500 text-slate-950 font-black">
@@ -219,25 +215,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <button
             type="button"
             onClick={onOpenPhotoCard}
-            className="flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-500/40 transition active:scale-95 shadow-md shadow-amber-500/10 shrink-0 cursor-pointer"
+            className="flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-500/40 transition active:scale-95 shadow-md shadow-amber-500/10 shrink-0 cursor-pointer"
             title="ক্যাম্পাস ফটো কার্ড ও স্পিচ বাবল জেনারেটর 📸"
           >
-            <Camera size={13} />
-            <span className="hidden sm:inline text-[11px] font-semibold">ফটো কার্ড</span>
+            <Camera size={12} />
+            <span className="hidden sm:inline font-semibold">ফটো কার্ড</span>
           </button>
 
-          {/* 3. Direct Cheers on Desktop Screens (collapsed into More Menu on mobile) */}
-          <button
-            type="button"
-            onClick={onCheers}
-            className="hidden md:flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-500/40 transition active:scale-95 shrink-0 cursor-pointer"
-            title="চায়ের কাপে চিয়ার্স পাঠান ☕"
-          >
-            <Coffee size={13} />
-            <span className="text-[11px] font-medium">চিয়ার্স!</span>
-          </button>
-
-          {/* 4. More Options Dropdown ("⋯" / "আরও ▾") */}
+          {/* 3. More Options Dropdown ("⋯" / "আরও ▾") */}
           <div ref={moreMenuRef} className="relative shrink-0">
             <button
               type="button"
@@ -245,7 +230,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 setIsMoreOpen((prev) => !prev);
                 setIsMoodOpen(false);
               }}
-              className={`p-1.5 sm:px-2 sm:py-1.5 rounded-full border transition active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer ${
+              className={`p-1 sm:p-1.5 rounded-full border transition active:scale-95 flex items-center justify-center shrink-0 cursor-pointer ${
                 isMoreOpen
                   ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-md shadow-amber-500/20'
                   : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-white/10'
@@ -253,7 +238,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               title="আরও আড্ডা অপশন"
             >
               <MoreHorizontal size={14} />
-              <span className="hidden lg:inline text-[11px] font-medium">আরও</span>
             </button>
 
             {/* Floating More Options Menu */}
@@ -263,6 +247,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   <span>ক্যাম্পাস ফিচার ও স্মৃতি</span>
                   <span>✨</span>
                 </div>
+
+                {/* Live Weather Pill inside More Menu */}
+                {weather && (
+                  <div className="px-2.5 py-1 rounded-xl bg-slate-900/80 border border-white/5 text-[11px] text-slate-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span>{weather.icon}</span>
+                      <span>ঢাকা {weather.temperature}°C</span>
+                    </span>
+                    <span className="text-slate-400 text-[10px]">{weather.description}</span>
+                  </div>
+                )}
 
                 {/* Confessions Board */}
                 <button

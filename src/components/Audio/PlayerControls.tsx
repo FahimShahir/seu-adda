@@ -145,14 +145,14 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               <CloudRain size={14} />
             </button>
 
-            {/* Volume Control (hidden on mobile, visible on desktop) */}
-            <div className="hidden md:flex items-center gap-1.5">
+            {/* Volume Control */}
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => onVolumeChange(volume === 0 ? 80 : 0)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-slate-400 hover:text-white p-1 rounded-full transition active:scale-95"
                 title={volume === 0 ? 'আনমিউট' : 'মিউট'}
               >
-                {volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                {volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
               </button>
               <input
                 type="range"
@@ -160,7 +160,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                 max="100"
                 value={volume}
                 onChange={(e) => onVolumeChange(Number(e.target.value))}
-                className="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                className="hidden sm:inline-block w-12 sm:w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
               />
             </div>
           </div>
