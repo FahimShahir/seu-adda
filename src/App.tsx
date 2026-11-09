@@ -171,15 +171,11 @@ export function App() {
         {/* Floating Top Header Navigation with Integrated Mood Selector & Live Dhaka Weather */}
         <HeaderBar
           onlineCount={onlineCount}
-          isNight={isNight}
-          isRain={isRain}
           currentMood={currentMood}
           dhakaTime={dhakaTime}
           weather={weather}
           activeRoom={activeRoom}
           onSelectMood={setCurrentMood}
-          onToggleNight={handleToggleNight}
-          onToggleRain={handleToggleRain}
           onOpenConfessions={() => setIsConfessionOpen(true)}
           onOpenPhotoCard={() => {
             if (latestSpeech) setActiveQuote(latestSpeech);
@@ -187,6 +183,7 @@ export function App() {
           }}
           onOpenRoom={() => setIsRoomOpen(true)}
           onCheers={handleCheers}
+          onOpenPlaylist={() => setIsPlaylistOpen(true)}
         />
 
         {/* On-Screen Floating Room Chat Bar (Directly on Main Screen!) */}
