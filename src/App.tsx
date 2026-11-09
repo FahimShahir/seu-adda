@@ -4,18 +4,19 @@ import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { useAmbientAudio } from './hooks/useAmbientAudio';
 import { usePresenceAndConfessions } from './hooks/usePresenceAndConfessions';
 import { HeaderBar } from './components/UI/HeaderBar';
+import { AddaMoodSelector } from './components/UI/AddaMoodSelector';
 import { CampusScene } from './components/Scene/CampusScene';
 import { PlayerControls } from './components/Audio/PlayerControls';
 import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
-import { Sparkles } from 'lucide-react';
+import { AddaMood } from './data/dialogues';
 
 export function App() {
   const [isNight, setIsNight] = useState(false);
   const [isRain, setIsRain] = useState(false);
+  const [currentMood, setCurrentMood] = useState<AddaMood>('general');
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [isConfessionOpen, setIsConfessionOpen] = useState(false);
-  const [showGuide, setShowGuide] = useState(true);
 
   // Audio & Player Hooks
   const {
@@ -63,17 +64,11 @@ export function App() {
     });
   };
 
-  // Dismiss guide toast after 9s
-  useEffect(() => {
-    const t = setTimeout(() => setShowGuide(false), 9000);
-    return () => clearTimeout(t);
-  }, []);
-
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-1000 ${
       isNight ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'
     }`}>
-      {/* Hidden YouTube Iframe Audio Host (must have size and render to avoid browser throttle) */}
+      {/* Hidden YouTube Iframe Audio Host */}
       <div
         ref={containerRef}
         aria-hidden="true"
@@ -92,30 +87,19 @@ export function App() {
       />
 
       {/* Main Campus Scene Container */}
-      <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 pb-20 sm:pb-24 overflow-x-hidden">
-        {/* Interactive Guide Banner */}
-        {showGuide && (
-          <div className="w-full max-w-md mb-2 bg-amber-500/15 border border-amber-500/30 text-amber-200 text-[11px] sm:text-xs px-3.5 py-2 rounded-xl flex items-center justify-between gap-2 shadow-lg backdrop-blur-md animate-pop">
-            <div className="flex items-center gap-2">
-              <Sparkles size={15} className="text-amber-400 shrink-0" />
-              <span>
-                💡 <strong>ক্যাম্পাস টিপস:</strong> ছবিতে থাকা যে কারও উপর ক্লিক করে কথা শুনুন, গিটারিস্টে ক্লিক করে গান শুনুন!
-              </span>
-            </div>
-            <button
-              onClick={() => setShowGuide(false)}
-              className="text-slate-400 hover:text-white p-1"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+      <main className="flex-1 flex flex-col items-center justify-start p-2 pb-20 sm:pb-24 overflow-x-hidden">
+        {/* Dynamic Adda Mood / Topic Selector */}
+        <AddaMoodSelector
+          currentMood={currentMood}
+          onSelectMood={setCurrentMood}
+        />
 
         {/* Central Interactive Campus Art Canvas */}
         <CampusScene
           isNight={isNight}
           isRain={isRain}
           isPlaying={playerState.isPlaying}
+          currentMood={currentMood}
           onToggleNight={() => setIsNight(prev => !prev)}
           onTogglePlay={togglePlay}
           onGuitarStrum={playGuitarStrum}

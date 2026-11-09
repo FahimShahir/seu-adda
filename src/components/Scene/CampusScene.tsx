@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { CAMPUS_HOTSPOTS, Hotspot } from '../../data/dialogues';
+import { CAMPUS_HOTSPOTS, Hotspot, AddaMood, DialogueLine } from '../../data/dialogues';
 import { CharacterBubble } from './CharacterBubble';
 import { RainCanvas } from './RainCanvas';
 import { Music, Coffee, Lightbulb } from 'lucide-react';
@@ -9,6 +9,7 @@ interface CampusSceneProps {
   isNight: boolean;
   isRain: boolean;
   isPlaying: boolean;
+  currentMood: AddaMood;
   onToggleNight: () => void;
   onTogglePlay: () => void;
   onGuitarStrum: () => void;
@@ -19,27 +20,32 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   isNight,
   isRain,
   isPlaying,
+  currentMood,
   onToggleNight,
   onTogglePlay,
   onGuitarStrum,
   onTeaClink
 }) => {
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
-  const [dialogueText, setDialogueText] = useState<string>('');
+  const [conversation, setConversation] = useState<DialogueLine[]>([]);
 
-  // Auto-dismiss active bubble after 8 seconds
+  // Auto-dismiss active bubble after 9 seconds
   useEffect(() => {
     if (!activeHotspot) return;
     const timer = setTimeout(() => {
       setActiveHotspot(null);
-    }, 8000);
+    }, 9000);
     return () => clearTimeout(timer);
   }, [activeHotspot]);
 
   const handleHotspotClick = (hotspot: Hotspot) => {
-    // Pick a random dialogue from the hotspot list
-    const randomIndex = Math.floor(Math.random() * hotspot.dialogues.length);
-    setDialogueText(hotspot.dialogues[randomIndex]);
+    // Pick dialogue based on currentMood
+    const moodDialogues = hotspot.dialogues[currentMood]?.length
+      ? hotspot.dialogues[currentMood]
+      : hotspot.dialogues.general;
+
+    const randomIndex = Math.floor(Math.random() * moodDialogues.length);
+    setConversation(moodDialogues[randomIndex]);
     setActiveHotspot(hotspot);
 
     if (hotspot.actionType === 'music') {
@@ -64,8 +70,8 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
       className="relative mx-auto rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 aspect-[686/1024] touch-manipulation select-none"
       style={{
         width: '100%',
-        maxWidth: 'min(100%, calc((100dvh - 135px) * 686 / 1024))',
-        maxHeight: 'calc(100dvh - 135px)'
+        maxWidth: 'min(100%, calc((100dvh - 165px) * 686 / 1024))',
+        maxHeight: 'calc(100dvh - 165px)'
       }}
     >
       {/* Base Artwork - Day Mode */}
@@ -113,7 +119,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
               height: `${hotspot.height}%`
             }}
             onClick={() => handleHotspotClick(hotspot)}
-            title={`${hotspot.name} — ক্লিক করে কথা শুনুন`}
+            title={`${hotspot.groupName} (${hotspot.subName}) — আড্ডা শুনুন`}
           >
             {/* Clickable Area Highlight */}
             <div
@@ -171,7 +177,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
             {isActive && (
               <CharacterBubble
                 hotspot={hotspot}
-                dialogueText={dialogueText}
+                conversation={conversation}
                 onClose={() => setActiveHotspot(null)}
               />
             )}
