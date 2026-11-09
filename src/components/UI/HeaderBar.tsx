@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { MessageSquareHeart, CloudRain, Sun, Moon, Coffee, Sparkles, HeartCrack, BookOpen, Camera } from 'lucide-react';
+import { MessageSquareHeart, CloudRain, Sun, Moon, Coffee, Sparkles, HeartCrack, BookOpen, Camera, Users } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
 import { DhakaWeather } from '../../hooks/useDhakaClockAndWeather';
 
@@ -10,11 +10,13 @@ interface HeaderBarProps {
   currentMood: AddaMood;
   dhakaTime: string;
   weather: DhakaWeather | null;
+  activeRoom?: { id: string; name: string; participants: any[] } | null;
   onSelectMood: (mood: AddaMood) => void;
   onToggleNight: () => void;
   onToggleRain: () => void;
   onOpenConfessions: () => void;
   onOpenPhotoCard: () => void;
+  onOpenRoom: () => void;
   onCheers: () => void;
 }
 
@@ -25,11 +27,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   currentMood,
   dhakaTime,
   weather,
+  activeRoom,
   onSelectMood,
   onToggleNight,
   onToggleRain,
   onOpenConfessions,
   onOpenPhotoCard,
+  onOpenRoom,
   onCheers
 }) => {
   const moodScrollRef = useRef<HTMLDivElement>(null);
@@ -140,6 +144,27 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         {/* Right: Quick Action Controls */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Private Adda Room Button */}
+          <button
+            onClick={onOpenRoom}
+            className={`flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-full border transition active:scale-95 ${
+              activeRoom
+                ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-md shadow-amber-500/20'
+                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-white/10'
+            }`}
+            title={activeRoom ? `আড্ডা রুম: ${activeRoom.name}` : 'পার্সোনাল আড্ডা রুম তৈরি বা জয়েন করুন'}
+          >
+            <Users size={12} className={activeRoom ? 'text-amber-400' : 'text-emerald-400'} />
+            <span className="text-[11px] font-semibold">
+              {activeRoom ? activeRoom.name.slice(0, 8) : 'রুম'}
+            </span>
+            {activeRoom && (
+              <span className="text-[9px] px-1 rounded-full bg-amber-500 text-slate-950 font-black">
+                {activeRoom.participants.length}
+              </span>
+            )}
+          </button>
+
           {/* Polaroid Campus Photo Card Generator */}
           <button
             onClick={onOpenPhotoCard}

@@ -27,22 +27,23 @@ export function parseYouTubeSource(input: string): ParsedYouTubeSource | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  // 1. Check for playlist URL or parameter: list=([a-zA-Z0-9_-]+)
-  const playlistMatch = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-  if (playlistMatch) {
-    return { type: 'playlist', id: playlistMatch[1] };
-  }
-
-  // 2. Check for short URL: youtu.be/([a-zA-Z0-9_-]{11})
-  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (shortMatch) {
-    return { type: 'video', id: shortMatch[1] };
-  }
-
-  // 3. Check for standard video watch URL: v=([a-zA-Z0-9_-]{11})
+  // 1. Check for standard video watch URL: v=([a-zA-Z0-9_-]{11})
+  // We prioritize 'v=' FIRST so that URLs with &list=RD... (YouTube Mix/Radio) load the chosen video directly without Error 2!
   const videoMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
   if (videoMatch) {
     return { type: 'video', id: videoMatch[1] };
+  }
+
+  // 2. Check for YouTube Shorts: youtube.com/shorts/([a-zA-Z0-9_-]{11})
+  const shortsMatch = trimmed.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (shortsMatch) {
+    return { type: 'video', id: shortsMatch[1] };
+  }
+
+  // 3. Check for short URL: youtu.be/([a-zA-Z0-9_-]{11})
+  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) {
+    return { type: 'video', id: shortMatch[1] };
   }
 
   // 4. Check for embed URL: youtube.com/embed/([a-zA-Z0-9_-]{11})
@@ -51,13 +52,19 @@ export function parseYouTubeSource(input: string): ParsedYouTubeSource | null {
     return { type: 'video', id: embedMatch[1] };
   }
 
-  // 5. If exactly 11 chars alphanumeric, treat as direct video ID
+  // 5. Check for playlist URL or parameter: list=([a-zA-Z0-9_-]+) (when no video v= was present)
+  const playlistMatch = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  if (playlistMatch) {
+    return { type: 'playlist', id: playlistMatch[1] };
+  }
+
+  // 6. If exactly 11 chars alphanumeric, treat as direct video ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
     return { type: 'video', id: trimmed };
   }
 
-  // 6. If longer (like PL...), treat as playlist ID
-  if (/^[a-zA-Z0-9_-]{12,}$/.test(trimmed)) {
+  // 7. If starts with PL or longer, treat as playlist ID
+  if (/^(PL|OLAK5uy_)[a-zA-Z0-9_-]+$/.test(trimmed) || /^[a-zA-Z0-9_-]{18,}$/.test(trimmed)) {
     return { type: 'playlist', id: trimmed };
   }
 
@@ -105,6 +112,7 @@ export function useYouTubePlayer(initialPlaylistId: string) {
       playerRef.current = new window.YT.Player(playerDiv, {
         height: '200',
         width: '200',
+        host: 'https://www.youtube-nocookie.com',
         playerVars: {
           autoplay: 0,
           controls: 0,
@@ -112,7 +120,8 @@ export function useYouTubePlayer(initialPlaylistId: string) {
           fs: 0,
           rel: 0,
           playsinline: 1,
-          enablejsapi: 1
+          enablejsapi: 1,
+          origin: typeof window !== 'undefined' ? window.location.origin : undefined
         },
         events: {
           onReady: (event: any) => {
@@ -203,16 +212,31 @@ export function useYouTubePlayer(initialPlaylistId: string) {
             }
           },
           onError: (event: any) => {
-            console.warn('YouTube Player Event Error Code:', event.data);
+            const errCode = event.data;
+            console.warn('YouTube Player Event Error Code:', errCode);
+            let msg = 'পরবর্তী গানে যাচ্ছি...';
+            if (errCode === 150 || errCode === 101) {
+              msg = '⚠️ এই গানটির ইউটিউব কপিরাইট বিধিনিষেধ রয়েছে। অন্য গান বাছুন।';
+            } else if (errCode === 2) {
+              msg = '⚠️ গানের লিংকে ত্রুটি রয়েছে বা ভিডিওটি চালানো যাচ্ছে না।';
+            } else if (errCode === 100) {
+              msg = '⚠️ গানটি সরানো হয়েছে বা প্রাইভেট করা হয়েছে।';
+            }
             setPlayerState(prev => ({
               ...prev,
-              statusText: 'পরবর্তী গানে যাচ্ছি...'
+              statusText: msg
             }));
-            setTimeout(() => {
-              try {
-                if (playerRef.current) playerRef.current.nextVideo();
-              } catch (e) {}
-            }, 800);
+
+            // Only auto-skip if inside an active multi-song playlist, not on single video error
+            if (errCode !== 150 && errCode !== 101 && errCode !== 2) {
+              setTimeout(() => {
+                try {
+                  if (playerRef.current && typeof playerRef.current.nextVideo === 'function') {
+                    playerRef.current.nextVideo();
+                  }
+                } catch (e) {}
+              }, 1200);
+            }
           }
         }
       });
@@ -336,6 +360,12 @@ export function useYouTubePlayer(initialPlaylistId: string) {
     isPlayingRef.current = true;
     pendingPlayRef.current = true;
 
+    setPlayerState(prev => ({
+      ...prev,
+      isPlaying: true,
+      statusText: 'গান লোড হচ্ছে... 🎶'
+    }));
+
     if (parsed.type === 'playlist') {
       setPlaylistId(parsed.id);
       if (playerRef.current && typeof playerRef.current.loadPlaylist === 'function') {
@@ -352,10 +382,19 @@ export function useYouTubePlayer(initialPlaylistId: string) {
       // Single Video ID
       if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
         try {
-          playerRef.current.loadVideoById(parsed.id);
+          playerRef.current.loadVideoById({
+            videoId: parsed.id,
+            startSeconds: 0
+          });
           playerRef.current.unMute();
           playerRef.current.playVideo();
-        } catch (e) {}
+        } catch (e) {
+          try {
+            playerRef.current.loadVideoById(parsed.id);
+            playerRef.current.unMute();
+            playerRef.current.playVideo();
+          } catch (_) {}
+        }
       }
     }
     return true;

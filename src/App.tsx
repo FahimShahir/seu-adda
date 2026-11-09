@@ -10,6 +10,8 @@ import { PlayerControls } from './components/Audio/PlayerControls';
 import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
 import { PhotoCardModal } from './components/Community/PhotoCardModal';
+import { PrivateRoomModal } from './components/Room/PrivateRoomModal';
+import { useAddaRoom } from './hooks/useAddaRoom';
 import { AddaMood } from './data/dialogues';
 
 export function App() {
@@ -19,6 +21,8 @@ export function App() {
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [isConfessionOpen, setIsConfessionOpen] = useState(false);
   const [isPhotoCardOpen, setIsPhotoCardOpen] = useState(false);
+  const [isRoomOpen, setIsRoomOpen] = useState(false);
+  const [pendingJoinRoomId, setPendingJoinRoomId] = useState('');
   const [activeQuote, setActiveQuote] = useState<{ speaker: string; text: string } | undefined>(undefined);
   const [hasAutoSynced, setHasAutoSynced] = useState(false);
 
@@ -35,6 +39,33 @@ export function App() {
     playCustomSource,
     playlistId
   } = useYouTubePlayer('PLOPZkRWRrUEk');
+
+  // Private Adda Room Hook (2-hour ephemeral rooms with sync music & chat)
+  const {
+    currentUser,
+    activeRoom,
+    timeRemaining,
+    roomError,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    sendChatMessage,
+    setRoomSong
+  } = useAddaRoom((source) => {
+    playCustomSource(source);
+  });
+
+  // Check URL query params for ?room=SEU-XXXX
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const r = params.get('room');
+      if (r) {
+        setPendingJoinRoomId(r.trim().toUpperCase());
+        setIsRoomOpen(true);
+      }
+    } catch (_) {}
+  }, []);
 
   const {
     setRainAudio,
@@ -133,11 +164,13 @@ export function App() {
           currentMood={currentMood}
           dhakaTime={dhakaTime}
           weather={weather}
+          activeRoom={activeRoom}
           onSelectMood={setCurrentMood}
           onToggleNight={handleToggleNight}
           onToggleRain={handleToggleRain}
           onOpenConfessions={() => setIsConfessionOpen(true)}
           onOpenPhotoCard={() => setIsPhotoCardOpen(true)}
+          onOpenRoom={() => setIsRoomOpen(true)}
           onCheers={handleCheers}
         />
 
@@ -188,6 +221,22 @@ export function App() {
         currentAuthor={playerState.currentAuthor}
         dhakaTime={dhakaTime}
         activeQuote={activeQuote}
+      />
+
+      {/* Ephemeral 2-Hour Private Adda Room Modal */}
+      <PrivateRoomModal
+        isOpen={isRoomOpen}
+        onClose={() => setIsRoomOpen(false)}
+        activeRoom={activeRoom}
+        timeRemaining={timeRemaining}
+        roomError={roomError}
+        currentUser={currentUser}
+        onCreateRoom={(title, name, dept) => createRoom(title, name, dept)}
+        onJoinRoom={(id, name, dept) => joinRoom(id, name, dept)}
+        onLeaveRoom={leaveRoom}
+        onSendMessage={sendChatMessage}
+        onSetRoomSong={setRoomSong}
+        initialRoomId={pendingJoinRoomId}
       />
     </div>
   );
