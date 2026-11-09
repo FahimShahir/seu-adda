@@ -327,19 +327,35 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
                     {CAMPUS_CHARACTERS.filter((c) => c.gender === gender && c.zone === pickerZone).map((c) => {
                       const isSelected = c.id === characterId;
+                      let isTakenInTarget = false;
+                      try {
+                        const saved = localStorage.getItem(`seu_adda_room_${roomIdInput.trim().toUpperCase()}`);
+                        if (saved) {
+                          const parsed = JSON.parse(saved);
+                          if (parsed && Array.isArray(parsed.participants)) {
+                            isTakenInTarget = parsed.participants.some((p: any) => p.characterId === c.id && p.id !== currentUser.id);
+                          }
+                        }
+                      } catch (_) {}
+
                       return (
                         <button
                           key={c.id}
                           type="button"
-                          onClick={() => setCharacterId(c.id)}
+                          disabled={isTakenInTarget}
+                          onClick={() => !isTakenInTarget && setCharacterId(c.id)}
                           className={`flex items-center gap-1.5 p-1.5 rounded-xl text-left border transition text-xs ${
                             isSelected
                               ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-sm'
+                              : isTakenInTarget
+                              ? 'bg-slate-950/80 border-red-950/40 text-slate-500 opacity-40 cursor-not-allowed'
                               : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
+                          title={isTakenInTarget ? 'এই ক্যারেক্টারটি ইতিমধ্যে রুমে একজন নিয়েছেন' : c.name}
                         >
                           <span className="text-sm shrink-0">{c.emoji}</span>
                           <span className="truncate">{c.name}</span>
+                          {isTakenInTarget && <span className="text-[9px] text-amber-500">🔒</span>}
                         </button>
                       );
                     })}
@@ -478,19 +494,35 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
                     {CAMPUS_CHARACTERS.filter((c) => c.gender === gender && c.zone === pickerZone).map((c) => {
                       const isSelected = c.id === characterId;
+                      let isTakenInTarget = false;
+                      try {
+                        const saved = localStorage.getItem(`seu_adda_room_${roomIdInput.trim().toUpperCase()}`);
+                        if (saved) {
+                          const parsed = JSON.parse(saved);
+                          if (parsed && Array.isArray(parsed.participants)) {
+                            isTakenInTarget = parsed.participants.some((p: any) => p.characterId === c.id && p.id !== currentUser.id);
+                          }
+                        }
+                      } catch (_) {}
+
                       return (
                         <button
                           key={c.id}
                           type="button"
-                          onClick={() => setCharacterId(c.id)}
+                          disabled={isTakenInTarget}
+                          onClick={() => !isTakenInTarget && setCharacterId(c.id)}
                           className={`flex items-center gap-1.5 p-1.5 rounded-xl text-left border transition text-xs ${
                             isSelected
                               ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-sm'
+                              : isTakenInTarget
+                              ? 'bg-slate-950/80 border-red-950/40 text-slate-500 opacity-40 cursor-not-allowed'
                               : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
+                          title={isTakenInTarget ? 'এই ক্যারেক্টারটি ইতিমধ্যে রুমে একজন নিয়েছেন' : c.name}
                         >
                           <span className="text-sm shrink-0">{c.emoji}</span>
                           <span className="truncate">{c.name}</span>
+                          {isTakenInTarget && <span className="text-[9px] text-amber-500">🔒</span>}
                         </button>
                       );
                     })}

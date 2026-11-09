@@ -58,12 +58,31 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     gender: 'male' | 'female';
     characterId: string;
   }>(() => {
+    let tabId = '';
+    try {
+      tabId = sessionStorage.getItem('seu_room_tab_uid') || '';
+      if (!tabId) {
+        tabId = 'user_' + Math.random().toString(36).substring(2, 9);
+        sessionStorage.setItem('seu_room_tab_uid', tabId);
+      }
+    } catch (e) {
+      tabId = 'user_' + Math.random().toString(36).substring(2, 9);
+    }
+
     try {
       const saved = localStorage.getItem('seu_room_user');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          id: tabId,
+          name: parsed.name || '',
+          dept: parsed.dept || 'CSE',
+          gender: parsed.gender || 'male',
+          characterId: parsed.characterId || 'guitarist'
+        };
+      }
     } catch (e) {}
-    const newId = 'user_' + Math.random().toString(36).substring(2, 9);
-    return { id: newId, name: '', dept: 'CSE', gender: 'male', characterId: 'guitarist' };
+    return { id: tabId, name: '', dept: 'CSE', gender: 'male', characterId: 'guitarist' };
   });
 
   const [activeRoom, setActiveRoom] = useState<AddaRoom | null>(null);
@@ -220,6 +239,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         if (current && current.id === event.roomId) {
           const newParticipant = event.payload.participant as RoomParticipant;
           const joinMsg = event.payload.systemMessage as ChatMessage;
+          let updatedRoomState: AddaRoom | null = null;
           updateRoomState((prev) => {
             if (!prev) return null;
             const exists = prev.participants.some((p) => p.id === newParticipant.id);
@@ -234,21 +254,25 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
                 ? [...prev.messages, joinMsg]
                 : prev.messages;
 
-            return {
+            const next = {
               ...prev,
               participants: updatedParticipants,
               messages: updatedMessages
             };
+            updatedRoomState = next;
+            return next;
           });
 
-          // Respond with current room state
-          dispatchRoomEvent({
-            type: 'ROOM_SYNC_RESPONSE',
-            roomId: event.roomId,
-            senderId: currentUser.id,
-            payload: current,
-            timestamp: Date.now()
-          });
+          // Respond with updated room state
+          if (updatedRoomState) {
+            dispatchRoomEvent({
+              type: 'ROOM_SYNC_RESPONSE',
+              roomId: event.roomId,
+              senderId: currentUser.id,
+              payload: updatedRoomState,
+              timestamp: Date.now()
+            });
+          }
         }
       } else if (event.type === 'ROOM_LEAVE') {
         if (current && current.id === event.roomId) {
@@ -287,8 +311,16 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
                 allMsgs.push(sm);
               }
             }
+
+            // Union-merge participants by unique ID
+            const pMap = new Map<string, RoomParticipant>();
+            syncedRoom.participants.forEach((p) => pMap.set(p.id, p));
+            prev.participants.forEach((p) => pMap.set(p.id, p));
+            const mergedParticipants = Array.from(pMap.values());
+
             return {
               ...syncedRoom,
+              participants: mergedParticipants,
               messages: allMsgs
             };
           });
@@ -592,13 +624,15 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         return false;
       }
 
-      // Find best available character for this user
+      // Find best available character for this user (prevent duplicate/taken characters)
+      const takenCharIds = targetRoom.participants.map((p) => p.characterId);
       let assignedCharId = characterId;
-      if (!assignedCharId) {
-        const takenCharIds = targetRoom.participants.map((p) => p.characterId);
+      if (!assignedCharId || takenCharIds.includes(assignedCharId)) {
         const candidates = CAMPUS_CHARACTERS.filter((c) => c.gender === gender);
         const free = candidates.find((c) => !takenCharIds.includes(c.id));
-        assignedCharId = free ? free.id : candidates[0].id;
+        assignedCharId = free
+          ? free.id
+          : CAMPUS_CHARACTERS.find((c) => !takenCharIds.includes(c.id))?.id || candidates[0].id;
       }
 
       saveCurrentUser(cleanName, cleanDept, gender, assignedCharId);
@@ -657,7 +691,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     [currentUser.id, dispatchRoomEvent, saveCurrentUser]
   );
 
-  // 3. Transfer / Switch to Another Character
+  // 3. Transfer / Switch to Another Character (Exclusive Claim Enforcement)
   const transferCharacter = useCallback(
     (newCharacterId: string) => {
       const current = activeRoomRef.current;
@@ -666,6 +700,17 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const charObj = CAMPUS_CHARACTERS.find((c) => c.id === newCharacterId);
       if (!charObj) return;
 
+      // EXCLUSIVE LOCK CHECK: If another participant has already claimed this character, block transfer!
+      const isClaimedByOther = current.participants.some(
+        (p) => p.characterId === newCharacterId && p.id !== currentUser.id
+      );
+      if (isClaimedByOther) {
+        const owner = current.participants.find((p) => p.characterId === newCharacterId);
+        setRoomError(`"${charObj.name}" ইতিমধ্যে ${owner?.name || 'অন্য বন্ধু'} দখল করে রেখেছেন! অন্য ক্যারেক্টার বেছে নিন।`);
+        return false;
+      }
+
+      setRoomError('');
       saveCurrentUser(currentUser.name, currentUser.dept, charObj.gender, newCharacterId);
 
       updateRoomState((prev) => {
@@ -685,6 +730,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         payload: { participantId: currentUser.id, newCharacterId },
         timestamp: Date.now()
       });
+      return true;
     },
     [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, saveCurrentUser, updateRoomState]
   );

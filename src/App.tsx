@@ -250,6 +250,9 @@ export function App() {
         currentAuthor={playerState.currentAuthor}
         dhakaTime={dhakaTime}
         activeQuote={latestSpeech || activeQuote}
+        roomTitle={activeRoom?.name}
+        roomMessages={activeRoom?.messages}
+        roomParticipants={activeRoom?.participants}
       />
 
       {/* Ephemeral 2-Hour Private Adda Room Modal */}

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import mqtt, { MqttClient } from 'mqtt';
 
 export interface Confession {
   id: string;
@@ -9,6 +10,9 @@ export interface Confession {
   timestamp: string;
   likes: number;
 }
+
+const MQTT_BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
+const CONFESSIONS_TOPIC = 'seu_campus_adda/global_confessions_v1';
 
 const DEFAULT_CONFESSIONS: Confession[] = [
   {
@@ -58,11 +62,14 @@ export function usePresenceAndConfessions() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch (e) {
-      // fallback
-    }
+    } catch (e) {}
     return DEFAULT_CONFESSIONS;
   });
+
+  const confessionsRef = useRef<Confession[]>(confessions);
+  confessionsRef.current = confessions;
+
+  const mqttClientRef = useRef<MqttClient | null>(null);
 
   // Calculate realistic live online presence based on current hour in Bangladesh
   useEffect(() => {
@@ -90,7 +97,63 @@ export function usePresenceAndConfessions() {
     return () => clearInterval(interval);
   }, []);
 
-  // Realtime multi-tab synchronization via BroadcastChannel
+  // Realtime multi-device synchronization via HiveMQ WebSockets MQTT
+  useEffect(() => {
+    const clientId = 'seu_user_' + Math.random().toString(36).substring(2, 9);
+    let client: MqttClient | null = null;
+
+    try {
+      client = mqtt.connect(MQTT_BROKER_URL, {
+        clientId,
+        clean: true,
+        connectTimeout: 8000,
+        reconnectPeriod: 5000
+      });
+      mqttClientRef.current = client;
+
+      client.on('connect', () => {
+        client?.subscribe(CONFESSIONS_TOPIC, { qos: 0 });
+      });
+
+      client.on('message', (_topic, message) => {
+        try {
+          const event = JSON.parse(message.toString());
+          if (event?.senderId === clientId) return; // Ignore own echo
+
+          if (event?.type === 'NEW_CONFESSION' && event.payload?.id) {
+            setConfessions((prev) => {
+              if (prev.some((c) => c.id === event.payload.id)) return prev;
+              const updated = [event.payload, ...prev];
+              try {
+                localStorage.setItem('seu_confessions', JSON.stringify(updated));
+              } catch (_) {}
+              return updated;
+            });
+          } else if (event?.type === 'LIKE_CONFESSION' && event.payload?.id) {
+            setConfessions((prev) => {
+              const updated = prev.map((c) =>
+                c.id === event.payload.id
+                  ? { ...c, likes: event.payload.likes ?? c.likes + 1 }
+                  : c
+              );
+              try {
+                localStorage.setItem('seu_confessions', JSON.stringify(updated));
+              } catch (_) {}
+              return updated;
+            });
+          }
+        } catch (_) {}
+      });
+    } catch (_) {}
+
+    return () => {
+      try {
+        client?.end(true);
+      } catch (_) {}
+    };
+  }, []);
+
+  // Multi-tab synchronization via BroadcastChannel (local same-browser fallback)
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
     try {
@@ -123,7 +186,7 @@ export function usePresenceAndConfessions() {
 
   const addConfession = useCallback((author: string, dept: string, text: string) => {
     const newConfession: Confession = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + '_' + Math.random().toString(36).substring(2, 6),
       author: author.trim() || 'সাউথইস্টের একজন',
       dept: dept.trim() || 'General',
       text: text.trim(),
@@ -131,7 +194,7 @@ export function usePresenceAndConfessions() {
       likes: 1
     };
 
-    setConfessions(prev => {
+    setConfessions((prev) => {
       const updated = [newConfession, ...prev];
       try {
         localStorage.setItem('seu_confessions', JSON.stringify(updated));
@@ -139,17 +202,46 @@ export function usePresenceAndConfessions() {
       broadcastUpdate(updated);
       return updated;
     });
+
+    // Publish to real-time MQTT broker for cross-device broadcast
+    try {
+      if (mqttClientRef.current?.connected) {
+        mqttClientRef.current.publish(
+          CONFESSIONS_TOPIC,
+          JSON.stringify({
+            type: 'NEW_CONFESSION',
+            payload: newConfession
+          })
+        );
+      }
+    } catch (_) {}
   }, []);
 
   const likeConfession = useCallback((id: string) => {
-    setConfessions(prev => {
-      const updated = prev.map(c => c.id === id ? { ...c, likes: c.likes + 1 } : c);
+    let updatedLikes = 1;
+    setConfessions((prev) => {
+      const target = prev.find((c) => c.id === id);
+      updatedLikes = target ? target.likes + 1 : 1;
+      const updated = prev.map((c) => (c.id === id ? { ...c, likes: updatedLikes } : c));
       try {
         localStorage.setItem('seu_confessions', JSON.stringify(updated));
       } catch (e) {}
       broadcastUpdate(updated);
       return updated;
     });
+
+    // Publish to real-time MQTT broker
+    try {
+      if (mqttClientRef.current?.connected) {
+        mqttClientRef.current.publish(
+          CONFESSIONS_TOPIC,
+          JSON.stringify({
+            type: 'LIKE_CONFESSION',
+            payload: { id, likes: updatedLikes }
+          })
+        );
+      }
+    } catch (_) {}
   }, []);
 
   return {

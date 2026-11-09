@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Send, X, Camera, ChevronUp } from 'lucide-react';
+import { Send, X, Camera, ChevronUp, Lock } from 'lucide-react';
 import { CAMPUS_CHARACTERS, CampusCharacter, CampusZone, RoomParticipant } from '../../types/room';
 
 interface FloatingRoomChatBarProps {
@@ -29,6 +29,7 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [activeZone, setActiveZone] = useState<CampusZone>('foreground');
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all');
+  const [warningToast, setWarningToast] = useState<string>('');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const currentCharacter =
@@ -46,6 +47,14 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   };
 
   const handleSelectCharacter = (char: CampusCharacter) => {
+    const owner = participants.find((p) => p.characterId === char.id);
+    const isTaken = owner && char.id !== myCharacterId;
+    if (isTaken) {
+      setWarningToast(`"${char.name}" ইতিমধ্যে ${owner.name} দখল করে রেখেছেন! অন্য ক্যারেক্টার বেছে নিন।`);
+      setTimeout(() => setWarningToast(''), 3500);
+      return;
+    }
+    setWarningToast('');
     onTransferCharacter(char.id);
     setIsPickerOpen(false);
   };
@@ -65,13 +74,13 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   return (
     <div className="absolute bottom-16 sm:bottom-20 left-2 sm:left-4 right-2 sm:right-4 z-40 select-none">
       
-      {/* Popover Character Switcher (Categorized into 3 Zones & Gender Filters) */}
+      {/* Popover Character Switcher (Categorized into 3 Zones & Gender Filters with Exclusive Locking) */}
       {isPickerOpen && (
-        <div className="mb-2 bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-xl animate-fadeIn text-slate-100 max-h-[340px] flex flex-col">
+        <div className="mb-2 bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-xl animate-fadeIn text-slate-100 max-h-[350px] flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
             <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-              <span>🎭 ক্যারেক্টার ট্রান্সফার (৩৫ জন সদস্য)</span>
+              <span>🎭 ক্যারেক্টার বেছে নিন (একজন একটিমাত্র ক্যারেক্টার)</span>
             </div>
             <button
               onClick={() => setIsPickerOpen(false)}
@@ -80,6 +89,14 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
               <X size={14} />
             </button>
           </div>
+
+          {/* Warning Banner if user attempts to take an already occupied character */}
+          {warningToast && (
+            <div className="mb-2 p-2 rounded-xl bg-red-950/80 border border-red-500/60 text-red-200 text-xs flex items-center gap-1.5 animate-shake">
+              <Lock size={13} className="shrink-0 text-red-400" />
+              <span className="font-medium text-[11px] leading-tight">{warningToast}</span>
+            </div>
+          )}
 
           {/* Zone Navigation Tabs */}
           <div className="flex bg-slate-900/80 p-1 rounded-xl gap-1 mb-2 border border-slate-800">
@@ -142,7 +159,7 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
             </button>
           </div>
 
-          {/* Filtered Character Grid */}
+          {/* Filtered Character Grid with Disabled/Lock Status */}
           <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-1.5 pr-0.5">
             {filteredCharacters.map((char) => {
               const isSelected = char.id === myCharacterId;
@@ -153,21 +170,30 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
                 <button
                   key={char.id}
                   type="button"
+                  disabled={isTaken}
                   onClick={() => handleSelectCharacter(char)}
                   className={`flex items-center gap-1.5 p-2 rounded-xl text-left border transition text-xs ${
                     isSelected
                       ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-md shadow-amber-500/10'
                       : isTaken
-                      ? 'bg-slate-900/60 border-slate-800 text-slate-400 opacity-75'
+                      ? 'bg-slate-950/70 border-red-950/40 text-slate-500 opacity-45 cursor-not-allowed'
                       : 'bg-slate-900/90 border-slate-700 hover:border-amber-400/50 text-slate-200'
                   }`}
+                  title={isTaken ? `"${char.name}" ইতিমধ্যে ${owner.name} দখল করেছেন` : `${char.name} ক্যারেক্টারে বদলান`}
                 >
                   <span className="text-base shrink-0">{char.emoji}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{char.name}</div>
-                    <div className="text-[9px] text-slate-400 truncate">
-                      {isTaken ? `(${owner.name})` : char.role}
+                    <div className="truncate font-medium flex items-center justify-between gap-1">
+                      <span className="truncate">{char.name}</span>
+                      {isTaken && <Lock size={10} className="text-amber-500 shrink-0" />}
                     </div>
+                    {isTaken ? (
+                      <div className="text-[9px] text-amber-400/90 font-medium truncate">
+                        🔒 {owner.name}
+                      </div>
+                    ) : (
+                      <div className="text-[9px] text-slate-400 truncate">{char.role}</div>
+                    )}
                   </div>
                 </button>
               );
