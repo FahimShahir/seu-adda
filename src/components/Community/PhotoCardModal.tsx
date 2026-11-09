@@ -18,8 +18,7 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  CloudRain,
-  MapPin
+  CloudRain
 } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
 import { ChatMessage, RoomParticipant, CAMPUS_CHARACTERS, CampusCharacter, CampusZone } from '../../types/room';
@@ -30,6 +29,7 @@ export interface GroupCardDialogue {
   dept?: string;            // User-customizable department (e.g. "CSE", "BBA")
   characterId: string;      // ID of character from CAMPUS_CHARACTERS
   text: string;             // Dialogue quote text
+  placement?: 'auto' | 'top' | 'left' | 'right' | 'bottom'; // Custom bubble placement
 }
 
 interface PhotoCardModalProps {
@@ -100,21 +100,24 @@ const DEFAULT_GROUP_DIALOGUES: GroupCardDialogue[] = [
     speaker: 'তানভীর',
     dept: 'Textile',
     characterId: 'guitarist',
-    text: 'সবাই একসাথে ধরবি— "যদি তোর ডাক শুনে কেউ না আসে তবে একলা চল রে!"'
+    text: 'সবাই একসাথে ধরবি— "যদি তোর ডাক শুনে কেউ না আসে তবে একলা চল রে!"',
+    placement: 'auto'
   },
   {
     id: 'g2',
     speaker: 'মেহজাবিন',
     dept: 'BBA',
     characterId: 'mid_stairs_girl_1',
-    text: 'জেরিন দেখ, আমরা দুজন এখন সিঁড়িতে বসে আড্ডা দিচ্ছি! 💜✨'
+    text: 'জেরিন দেখ, আমরা দুজন এখন সিঁড়িতে বসে আড্ডা দিচ্ছি! 💜✨',
+    placement: 'auto'
   },
   {
     id: 'g3',
     speaker: 'সাজিদ',
     dept: 'CSE',
     characterId: 'standing_boy_1',
-    text: 'দোস্ত, পরীক্ষার কি অবস্থা? গিটার বাজানো থামাইয়া একটু পড়ি চল!'
+    text: 'দোস্ত, পরীক্ষার কি অবস্থা? গিটার বাজানো থামাইয়া একটু পড়ি চল!',
+    placement: 'auto'
   }
 ];
 
@@ -126,6 +129,20 @@ const BUBBLE_THEMES = [
   { border: 'rgba(244, 114, 182, 0.95)', header: '#F472B6', pulse: '#EC4899' }, // Pink
   { border: 'rgba(167, 139, 250, 0.95)', header: '#A78BFA', pulse: '#8B5CF6' }  // Purple
 ];
+
+interface CalculatedBubble {
+  id: string;
+  dlg: GroupCardDialogue;
+  char: CampusCharacter;
+  theme: typeof BUBBLE_THEMES[0];
+  w: number;
+  h: number;
+  x: number;
+  y: number;
+  headX: number;
+  headY: number;
+  lines: string[];
+}
 
 export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
   isOpen,
@@ -209,7 +226,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
           speaker: m.senderName,
           dept: m.senderDept || 'CSE',
           characterId: m.characterId || 'guitarist',
-          text: m.text
+          text: m.text,
+          placement: 'auto'
         }));
         setGroupDialogues(initialGroup);
       } else {
@@ -243,7 +261,6 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
       if (dayLoaded && nightLoaded) renderCanvas();
     };
 
-    // Render immediately if already cached
     renderCanvas();
   }, [isOpen]);
 
@@ -284,8 +301,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
 
     // 2. Subtle Top Header Gradient (Keeps characters and scene 100% visible)
     const topGrad = ctx.createLinearGradient(0, 0, 0, 190);
-    topGrad.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
-    topGrad.addColorStop(0.65, 'rgba(2, 6, 23, 0.65)');
+    topGrad.addColorStop(0, 'rgba(2, 6, 23, 0.94)');
+    topGrad.addColorStop(0.65, 'rgba(2, 6, 23, 0.70)');
     topGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
     ctx.fillStyle = topGrad;
     ctx.fillRect(0, 0, 1000, 190);
@@ -361,11 +378,11 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         customText.trim() ||
         'ক্যাম্পাসের এই আড্ডার প্রতিটি মুহূর্ত, প্রতিটি গান আর প্রতি কাপ চা চিরকাল স্মৃতি হয়ে রবে।';
 
-      const qBoxY = 680;
-      const qBoxH = 340;
+      const qBoxY = 660;
+      const qBoxH = 360;
 
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
+      ctx.fillStyle = 'rgba(10, 15, 30, 0.95)';
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.90)';
       ctx.lineWidth = 3.5;
 
       ctx.beginPath();
@@ -376,36 +393,40 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
       // Speaker Name Header Badge
       ctx.textAlign = 'left';
       ctx.fillStyle = '#FBBF24';
-      ctx.font = 'bold 28px "Hind Siliguri", sans-serif';
-      ctx.fillText(`💬 ${speakerText}:`, 100, qBoxY + 60);
+      ctx.font = 'bold 30px "Hind Siliguri", sans-serif';
+      ctx.fillText(`💬 ${speakerText}:`, 100, qBoxY + 62);
 
       // Decorative underline
       ctx.strokeStyle = 'rgba(245, 158, 11, 0.40)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(100, qBoxY + 75);
-      ctx.lineTo(420, qBoxY + 75);
+      ctx.moveTo(100, qBoxY + 78);
+      ctx.lineTo(440, qBoxY + 78);
       ctx.stroke();
 
       // Message Lines
-      const lines = getWrappedLines(`"${mainMessage}"`, 780, '24px "Hind Siliguri", sans-serif');
-      ctx.fillStyle = '#F8FAFC';
-      ctx.font = '24px "Hind Siliguri", sans-serif';
-      lines.slice(0, 5).forEach((line, i) => {
-        ctx.fillText(line, 100, qBoxY + 125 + i * 38);
+      const lines = getWrappedLines(`"${mainMessage}"`, 780, '500 24px "Hind Siliguri", sans-serif');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '500 24px "Hind Siliguri", sans-serif';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.90)';
+      ctx.shadowBlur = 4;
+      lines.slice(0, 6).forEach((line, i) => {
+        ctx.fillText(line, 100, qBoxY + 130 + i * 38);
       });
+      ctx.shadowBlur = 0;
 
     } else {
       // ----------------------------------------------------
-      // SCENE-BASED CHARACTER SPEECH BUBBLE GROUP PHOTO CARD!
+      // SCENE-BASED SPEECH BUBBLE GROUP PHOTO CARD!
+      // (HIGH READABILITY & AUTOMATIC COLLISION RESOLUTION)
       // ----------------------------------------------------
       const finalGroupName = groupName.trim() || 'সাউথইস্ট ক্যাম্পাস আড্ডা';
 
       // Top Centered Group Banner Capsule
       const gCapsuleY = 115;
       const gCapsuleH = 50;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
+      ctx.fillStyle = 'rgba(10, 15, 30, 0.96)';
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.90)';
       ctx.lineWidth = 2.5;
 
       ctx.beginPath();
@@ -421,110 +442,194 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
       // Render Speech Bubbles on each character's actual position in the artwork!
       const dialoguesToDraw = groupDialogues.slice(0, 5);
 
-      dialoguesToDraw.forEach((dlg, idx) => {
+      // Step 1: Calculate initial layouts with large, legible fonts
+      const bodyFont = '500 22px "Hind Siliguri", sans-serif';
+      const lineHeight = 32;
+
+      const bubbleLayouts: CalculatedBubble[] = dialoguesToDraw.map((dlg, idx) => {
         const char = getCharObj(dlg.characterId);
         const theme = BUBBLE_THEMES[idx % BUBBLE_THEMES.length];
 
-        // Character pixel position on 1000 x 1500 canvas
         const charPixelX = (char.x / 100) * 1000;
         const charPixelY = (char.y / 100) * 1500;
 
-        // Head position
-        const headOffset =
-          char.zone === 'foreground' ? 52 : char.zone === 'midground' ? 38 : 26;
+        const headOffset = char.zone === 'foreground' ? 56 : char.zone === 'midground' ? 42 : 30;
         const headX = charPixelX;
         const headY = charPixelY - headOffset;
 
-        // Bubble dimensions
-        const bubbleW = char.zone === 'background' ? 260 : 285;
-        const lines = getWrappedLines(`"${dlg.text}"`, bubbleW - 28, '15px "Hind Siliguri", sans-serif');
-        const bubbleH = 38 + lines.slice(0, 3).length * 22 + 14;
+        // Expanded bubble width for clear reading
+        const bubbleW = char.zone === 'background' ? 330 : 360;
+        const lines = getWrappedLines(`"${dlg.text}"`, bubbleW - 36, bodyFont);
+        const activeLines = lines.slice(0, 4);
+        const bubbleH = 52 + activeLines.length * lineHeight + 16;
 
-        // Bubble X placement (bounded horizontally)
+        // Initial placement
         let bubbleX = charPixelX - bubbleW / 2;
-        if (bubbleX < 25) bubbleX = 25;
-        if (bubbleX + bubbleW > 975) bubbleX = 975 - bubbleW;
+        let bubbleY = headY - bubbleH - 22;
 
-        // Bubble Y placement (above the head)
-        let bubbleY = headY - bubbleH - 18;
-        if (bubbleY < 180) {
-          bubbleY = 180;
+        const p = dlg.placement || 'auto';
+        if (p === 'left') {
+          bubbleX = charPixelX - bubbleW - 20;
+          bubbleY = headY - bubbleH / 2;
+        } else if (p === 'right') {
+          bubbleX = charPixelX + 20;
+          bubbleY = headY - bubbleH / 2;
+        } else if (p === 'bottom') {
+          bubbleY = headY + 30;
         }
 
-        // Pointer triangle target
-        const pointerTipX = headX;
-        const pointerTipY = headY;
-        const pointerBaseX = Math.max(bubbleX + 26, Math.min(bubbleX + bubbleW - 26, headX));
-        const pointerBaseY = bubbleY + bubbleH;
+        bubbleX = Math.max(25, Math.min(1000 - bubbleW - 25, bubbleX));
+        bubbleY = Math.max(175, Math.min(1330 - bubbleH, bubbleY));
 
-        // Shadow for bubble
+        return {
+          id: dlg.id,
+          dlg,
+          char,
+          theme,
+          w: bubbleW,
+          h: bubbleH,
+          x: bubbleX,
+          y: bubbleY,
+          headX,
+          headY,
+          lines: activeLines
+        };
+      });
+
+      // Step 2: Intelligent Iterative Collision Resolution (Separation Engine)
+      for (let iter = 0; iter < 15; iter++) {
+        let hasCollision = false;
+        for (let i = 0; i < bubbleLayouts.length; i++) {
+          for (let j = i + 1; j < bubbleLayouts.length; j++) {
+            const b1 = bubbleLayouts[i];
+            const b2 = bubbleLayouts[j];
+
+            const overlapX = b1.x < b2.x + b2.w + 16 && b1.x + b1.w + 16 > b2.x;
+            const overlapY = b1.y < b2.y + b2.h + 16 && b1.y + b1.h + 16 > b2.y;
+
+            if (overlapX && overlapY) {
+              hasCollision = true;
+              if (b2.y >= b1.y) {
+                b2.y = b1.y + b1.h + 18;
+                if (b2.y + b2.h > 1340) {
+                  b1.y = Math.max(175, b1.y - (b2.y + b2.h - 1340) - 18);
+                  b2.y = b1.y + b1.h + 18;
+                }
+              } else {
+                b2.y = b1.y - b2.h - 18;
+                if (b2.y < 175) {
+                  b1.y = Math.min(1340 - b1.h, b1.y + (175 - b2.y) + 18);
+                  b2.y = b1.y - b2.h - 18;
+                }
+              }
+              b2.y = Math.max(175, Math.min(1340 - b2.h, b2.y));
+              b1.y = Math.max(175, Math.min(1340 - b1.h, b1.y));
+            }
+          }
+        }
+        if (!hasCollision) break;
+      }
+
+      // Step 3: Draw each non-overlapping bubble with dynamic pointer
+      bubbleLayouts.forEach((b) => {
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.90)';
         ctx.shadowBlur = 18;
         ctx.shadowOffsetY = 8;
 
-        // Draw Pointer Triangle
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
-        ctx.strokeStyle = theme.border;
-        ctx.lineWidth = 2.5;
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.96)';
+        ctx.strokeStyle = b.theme.border;
+        ctx.lineWidth = 3;
 
+        // Dynamic pointer calculation
         ctx.beginPath();
-        ctx.moveTo(pointerBaseX - 10, pointerBaseY);
-        ctx.lineTo(pointerTipX, pointerTipY);
-        ctx.lineTo(pointerBaseX + 10, pointerBaseY);
+        if (b.y + b.h <= b.headY + 6) {
+          // Bubble is above head -> pointer base on bottom edge
+          const pBaseX = Math.max(b.x + 30, Math.min(b.x + b.w - 30, b.headX));
+          const pBaseY = b.y + b.h;
+          ctx.moveTo(pBaseX - 12, pBaseY);
+          ctx.lineTo(b.headX, b.headY);
+          ctx.lineTo(pBaseX + 12, pBaseY);
+        } else if (b.y >= b.headY - 6) {
+          // Bubble is below head -> pointer base on top edge
+          const pBaseX = Math.max(b.x + 30, Math.min(b.x + b.w - 30, b.headX));
+          const pBaseY = b.y;
+          ctx.moveTo(pBaseX - 12, pBaseY);
+          ctx.lineTo(b.headX, b.headY);
+          ctx.lineTo(pBaseX + 12, pBaseY);
+        } else if (b.x >= b.headX) {
+          // Bubble is to the right -> pointer base on left edge
+          const pBaseX = b.x;
+          const pBaseY = Math.max(b.y + 24, Math.min(b.y + b.h - 24, b.headY));
+          ctx.moveTo(pBaseX, pBaseY - 12);
+          ctx.lineTo(b.headX, b.headY);
+          ctx.lineTo(pBaseX, pBaseY + 12);
+        } else {
+          // Bubble is to the left -> pointer base on right edge
+          const pBaseX = b.x + b.w;
+          const pBaseY = Math.max(b.y + 24, Math.min(b.y + b.h - 24, b.headY));
+          ctx.moveTo(pBaseX, pBaseY - 12);
+          ctx.lineTo(b.headX, b.headY);
+          ctx.lineTo(pBaseX, pBaseY + 12);
+        }
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
         // Draw Speech Bubble Container
         ctx.beginPath();
-        ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 16);
+        ctx.roundRect(b.x, b.y, b.w, b.h, 18);
         ctx.fill();
         ctx.stroke();
         ctx.restore();
 
         // Draw Glowing Halo Dot on Character Head
         ctx.beginPath();
-        ctx.arc(pointerTipX, pointerTipY, 5, 0, Math.PI * 2);
-        ctx.fillStyle = theme.pulse;
+        ctx.arc(b.headX, b.headY, 6, 0, Math.PI * 2);
+        ctx.fillStyle = b.theme.pulse;
         ctx.fill();
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.strokeStyle = '#FFFFFF';
         ctx.stroke();
 
         // Inside Bubble Header: Emoji + Speaker Name + Dept
         ctx.textAlign = 'left';
-        ctx.fillStyle = theme.header;
-        ctx.font = 'bold 16px "Hind Siliguri", sans-serif';
-        const speakerDisplayName = `${char.emoji} ${dlg.speaker}`;
-        ctx.fillText(speakerDisplayName.slice(0, 20), bubbleX + 14, bubbleY + 24);
+        ctx.fillStyle = b.theme.header;
+        ctx.font = 'bold 24px "Hind Siliguri", sans-serif';
+        const speakerDisplayName = `${b.char.emoji} ${b.dlg.speaker}`;
+        ctx.fillText(speakerDisplayName.slice(0, 20), b.x + 18, b.y + 34);
 
-        if (dlg.dept) {
-          ctx.fillStyle = '#94A3B8';
-          ctx.font = '12px "Hind Siliguri", sans-serif';
-          ctx.fillText(`[${dlg.dept}]`, bubbleX + bubbleW - 60, bubbleY + 23);
+        if (b.dlg.dept) {
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#CBD5E1';
+          ctx.font = 'bold 16px "Hind Siliguri", sans-serif';
+          ctx.fillText(`[${b.dlg.dept}]`, b.x + b.w - 18, b.y + 32);
         }
 
         // Header separator line
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(bubbleX + 14, bubbleY + 32);
-        ctx.lineTo(bubbleX + bubbleW - 14, bubbleY + 32);
+        ctx.moveTo(b.x + 18, b.y + 45);
+        ctx.lineTo(b.x + b.w - 18, b.y + 45);
         ctx.stroke();
 
-        // Body Text lines
-        ctx.fillStyle = '#F8FAFC';
-        ctx.font = '15px "Hind Siliguri", sans-serif';
-        lines.slice(0, 3).forEach((line, lIdx) => {
-          ctx.fillText(line, bubbleX + 14, bubbleY + 54 + lIdx * 22);
+        // Body Text lines (Pure white with subtle text shadow for maximum crispness)
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = bodyFont;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = 4;
+        b.lines.forEach((line, lIdx) => {
+          ctx.fillText(line, b.x + 18, b.y + 78 + lIdx * lineHeight);
         });
+        ctx.shadowBlur = 0;
       });
     }
 
     // 6. Bottom: Music Player Track Badge
     const mBoxY = 1365;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+    ctx.fillStyle = 'rgba(10, 15, 30, 0.96)';
     ctx.strokeStyle = 'rgba(245, 158, 11, 0.65)';
     ctx.lineWidth = 2;
 
@@ -629,6 +734,13 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
     );
   };
 
+  // Group Mode: Update placement
+  const handleUpdatePlacement = (id: string, placement: 'auto' | 'top' | 'left' | 'right' | 'bottom') => {
+    setGroupDialogues((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, placement } : d))
+    );
+  };
+
   // Group Mode: Change which character is speaking this dialogue
   const handleAssignCharacter = (dialogueId: string, charId: string) => {
     const char = getCharObj(charId);
@@ -638,7 +750,6 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
           ? {
               ...d,
               characterId: charId,
-              // If speaker name is untouched default, update to character name
               speaker: d.speaker === 'ক্যাম্পাস বন্ধু' || !d.speaker ? char.name : d.speaker
             }
           : d
@@ -650,7 +761,6 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
   // Group Mode: Add a new character bubble
   const handleAddDialogue = () => {
     if (groupDialogues.length >= 5) return;
-    // Pick an unassigned character if possible
     const assignedIds = groupDialogues.map((d) => d.characterId);
     const freeChar =
       CAMPUS_CHARACTERS.find((c) => !assignedIds.includes(c.id)) ||
@@ -661,7 +771,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
       speaker: freeChar.name,
       dept: 'CSE',
       characterId: freeChar.id,
-      text: 'সাউথইস্ট ক্যাম্পাসের এই মুহূর্তগুলো চিরকাল মনে রাখার মতো! ☕🎶'
+      text: 'সাউথইস্ট ক্যাম্পাসের এই মুহূর্তগুলো চিরকাল মনে রাখার মতো! ☕🎶',
+      placement: 'auto'
     };
     setGroupDialogues((prev) => [...prev, newDlg]);
   };
@@ -671,11 +782,10 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
     setGroupDialogues((prev) => {
       const exists = prev.some((d) => d.id === msg.id);
       if (exists) {
-        if (prev.length <= 1) return prev; // Keep at least 1
+        if (prev.length <= 1) return prev;
         return prev.filter((d) => d.id !== msg.id);
       }
       if (prev.length >= 5) {
-        // Shift oldest
         return [
           ...prev.slice(1),
           {
@@ -683,7 +793,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
             speaker: msg.senderName,
             dept: msg.senderDept || 'CSE',
             characterId: msg.characterId || 'guitarist',
-            text: msg.text
+            text: msg.text,
+            placement: 'auto'
           }
         ];
       }
@@ -694,7 +805,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
           speaker: msg.senderName,
           dept: msg.senderDept || 'CSE',
           characterId: msg.characterId || 'guitarist',
-          text: msg.text
+          text: msg.text,
+          placement: 'auto'
         }
       ];
     });
@@ -766,7 +878,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn select-none">
-      <div className="relative w-full max-w-5xl bg-slate-900 border border-amber-500/40 rounded-3xl p-3.5 sm:p-5 shadow-2xl text-slate-100 max-h-[95vh] flex flex-col no-scrollbar overflow-hidden">
+      <div className="relative w-full max-w-5xl bg-slate-900 border border-amber-500/40 rounded-3xl p-3 sm:p-5 shadow-2xl text-slate-100 max-h-[96vh] flex flex-col no-scrollbar overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2.5">
@@ -784,7 +896,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         </div>
 
         {/* Mode Switcher Toggle: Single Quote vs Group Scene Photo Card */}
-        <div className="flex items-center justify-between gap-2 bg-slate-950/80 p-1 rounded-2xl border border-white/5 mb-3">
+        <div className="flex items-center justify-between gap-2 bg-slate-950/80 p-1 rounded-2xl border border-white/5 mb-2.5">
           <div className="flex flex-1 gap-1">
             <button
               type="button"
@@ -845,7 +957,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         </div>
 
         {/* Responsive Content Grid: Desktop 2 Columns / Mobile Stacked */}
-        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
           
           {/* LEFT COLUMN: Controls & Dialogue Editor */}
           <div className="order-2 md:order-1 md:col-span-6 flex flex-col gap-3">
@@ -854,7 +966,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
             {cardMode === 'single' && (
               <>
                 {/* Speaker Input */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="flex items-center justify-between text-xs font-semibold text-amber-400">
                     <span className="flex items-center gap-1.5">
                       <User size={13} />
@@ -868,12 +980,12 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                     onChange={(e) => setCustomSpeaker(e.target.value)}
                     maxLength={40}
                     placeholder="যেমন: মাহিন - CSE, ক্যান্টিনের মামা, ক্রাশ..."
-                    className="w-full bg-slate-950/70 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none transition"
+                    className="w-full bg-slate-950/70 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none transition"
                   />
                 </div>
 
                 {/* Message Textarea */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs font-semibold text-amber-400">
                     <label className="flex items-center gap-1.5">
                       <MessageSquare size={13} />
@@ -889,12 +1001,12 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                     maxLength={180}
                     rows={3}
                     placeholder="এখানে আপনার মনের কথা, ক্যাম্পাসের স্মৃতি বা বন্ধুদের নিয়ে ডায়লগ লিখুন..."
-                    className="w-full bg-slate-950/70 border border-slate-700 focus:border-amber-500 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none resize-none transition leading-relaxed"
+                    className="w-full bg-slate-950/70 border border-slate-700 focus:border-amber-500 rounded-xl p-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none resize-none transition leading-relaxed"
                   />
                 </div>
 
                 {/* Quick Relatable Campus Presets */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
                       <Flame size={13} className="text-amber-500" />
@@ -910,7 +1022,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {PRESET_TEMPLATES.map((preset, index) => {
                       const isSelected = selectedPresetIndex === index;
                       return (
@@ -956,7 +1068,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                 </div>
 
                 {/* Active Speech Bubbles List on Characters */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-semibold text-amber-400">
                     <span>ক্যাম্পাসে স্পিচ বাবলসমূহ ({groupDialogues.length}/৫টি):</span>
                     {groupDialogues.length < 5 && (
@@ -975,16 +1087,15 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                   <div className="space-y-2 max-h-[220px] overflow-y-auto no-scrollbar pr-0.5">
                     {groupDialogues.map((dlg, idx) => {
                       const char = getCharObj(dlg.characterId);
-                      const theme = BUBBLE_THEMES[idx % BUBBLE_THEMES.length];
                       const isPickerOpen = activePickerDlgId === dlg.id;
 
                       return (
                         <div
                           key={dlg.id || idx}
-                          className="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs space-y-2 shadow-md relative"
+                          className="p-2.5 rounded-2xl bg-slate-950/75 border border-slate-800 text-xs space-y-1.5 shadow-md relative"
                         >
-                          {/* Row 1: Character Switcher & Speaker Name & Delete */}
-                          <div className="flex items-center gap-2">
+                          {/* Row 1: Character Switcher & Speaker Name & Dept & Delete */}
+                          <div className="flex items-center gap-1.5">
                             {/* Character Assign Button */}
                             <button
                               type="button"
@@ -995,7 +1106,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                               title="ক্যাম্পাসের ক্যারেক্টার পরিবর্তন করুন"
                             >
                               <span>{char.emoji}</span>
-                              <span className="truncate max-w-[70px]">{char.name}</span>
+                              <span className="truncate max-w-[65px]">{char.name}</span>
                               <ChevronDown size={11} className={`transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} />
                             </button>
 
@@ -1005,7 +1116,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                               value={dlg.speaker}
                               onChange={(e) => handleUpdateSpeaker(dlg.id, e.target.value)}
                               placeholder="বক্তার নাম..."
-                              className="flex-1 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none font-bold"
+                              className="flex-1 min-w-[70px] bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none font-bold"
                               title="বক্তার নাম পরিবর্তন করুন"
                             />
 
@@ -1081,8 +1192,29 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                             rows={2}
                             maxLength={120}
                             placeholder="এই ক্যারেক্টারের মাথার ওপর ডায়লগ লিখুন..."
-                            className="w-full bg-slate-900 border border-slate-700/80 focus:border-amber-500 rounded-lg p-2 text-xs text-slate-100 outline-none resize-none"
+                            className="w-full bg-slate-900 border border-slate-700/80 focus:border-amber-500 rounded-lg p-1.5 text-xs text-slate-100 outline-none resize-none leading-relaxed"
                           />
+
+                          {/* Row 3: Placement Selector to prevent any conflict */}
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-800/60">
+                            <span>বাবল অবস্থান:</span>
+                            <div className="flex items-center gap-1">
+                              {(['auto', 'top', 'left', 'right', 'bottom'] as const).map((p) => (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  onClick={() => handleUpdatePlacement(dlg.id, p)}
+                                  className={`px-1.5 py-0.2 rounded ${
+                                    (dlg.placement || 'auto') === p
+                                      ? 'bg-amber-500 text-slate-950 font-bold'
+                                      : 'bg-slate-900 text-slate-400 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {p === 'auto' ? 'স্বয়ংক্রিয়' : p === 'top' ? 'উপরে' : p === 'left' ? 'বামে' : p === 'right' ? 'ডানে' : 'নিচে'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -1090,7 +1222,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                 </div>
 
                 {/* Room Messages Selection Picker */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="text-xs font-semibold text-slate-300 flex items-center justify-between">
                     <span>
                       {eligibleRoomMessages.length > 0
@@ -1100,7 +1232,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                   </div>
 
                   {eligibleRoomMessages.length > 0 ? (
-                    <div className="max-h-[130px] overflow-y-auto no-scrollbar space-y-1 p-1 bg-slate-950/40 rounded-2xl border border-slate-800">
+                    <div className="max-h-[120px] overflow-y-auto no-scrollbar space-y-1 p-1 bg-slate-950/40 rounded-2xl border border-slate-800">
                       {eligibleRoomMessages.map((msg) => {
                         const isChecked = groupDialogues.some((d) => d.id === msg.id);
                         return (
@@ -1148,7 +1280,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
           </div>
 
           {/* RIGHT COLUMN: HD Canvas Live Preview & Action Buttons */}
-          <div className="order-1 md:order-2 md:col-span-6 flex flex-col items-center gap-2.5">
+          <div className="order-1 md:order-2 md:col-span-6 flex flex-col items-center gap-2">
             
             {/* Live Render Canvas (2:3 aspect ratio matching campus photo) */}
             <div className="w-full max-w-[280px] xs:max-w-[310px] sm:max-w-[340px] aspect-[2/3] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-500/50 relative flex items-center justify-center">
