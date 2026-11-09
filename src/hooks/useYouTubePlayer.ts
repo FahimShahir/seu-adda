@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { CAMPUS_PLAYLISTS, Playlist, Track } from '../data/playlists';
 
 declare global {
   interface Window {
@@ -19,31 +18,29 @@ export interface PlayerState {
   statusText: string;
 }
 
-export function useYouTubePlayer() {
-  const [currentPlaylist, setCurrentPlaylist] = useState<Playlist>(CAMPUS_PLAYLISTS[0]);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+export function useYouTubePlayer(initialPlaylistId: string) {
+  const [playlistId, setPlaylistId] = useState(initialPlaylistId);
   const [playerState, setPlayerState] = useState<PlayerState>({
     isPlaying: false,
     isReady: false,
-    volume: 80,
-    currentTitle: CAMPUS_PLAYLISTS[0].tracks[0].title,
-    currentAuthor: CAMPUS_PLAYLISTS[0].tracks[0].artist,
+    volume: 85,
+    currentTitle: 'ক্যাম্পাস অ্যাকোস্টিক আড্ডা',
+    currentAuthor: 'SEU Adda Radio',
     currentIndex: 0,
-    totalTracks: CAMPUS_PLAYLISTS[0].tracks.length,
-    statusText: 'গিটার স্পর্শ করে গান শুনুন'
+    totalTracks: 0,
+    statusText: 'গিটার স্পর্শ করে গান চালু করুন'
   });
 
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isPlayingRef = useRef(false);
-  const currentTrackIndexRef = useRef(0);
-  currentTrackIndexRef.current = currentTrackIndex;
+  const pendingPlayRef = useRef(false);
 
-  // Initialize YouTube Iframe API
+  // Initialize YouTube Iframe API using the official endpoint
   useEffect(() => {
     let isCancelled = false;
 
-    const initPlayer = () => {
+    const createPlayer = () => {
       if (!window.YT || !window.YT.Player || !containerRef.current) return;
 
       if (playerRef.current) {
@@ -55,10 +52,9 @@ export function useYouTubePlayer() {
       }
 
       const playerDiv = document.createElement('div');
+      playerDiv.id = 'yt-active-player';
       containerRef.current.innerHTML = '';
       containerRef.current.appendChild(playerDiv);
-
-      const videoIds = currentPlaylist.tracks.map(t => t.videoId);
 
       playerRef.current = new window.YT.Player(playerDiv, {
         height: '200',
@@ -70,137 +66,176 @@ export function useYouTubePlayer() {
           fs: 0,
           rel: 0,
           playsinline: 1,
-          modestbranding: 1,
-          origin: window.location.origin
+          enablejsapi: 1
         },
         events: {
           onReady: (event: any) => {
             if (isCancelled) return;
-            event.target.setVolume(playerState.volume);
-            
-            // Cue the playlist with our verified video IDs
             try {
-              event.target.cuePlaylist(videoIds, currentTrackIndexRef.current, 0);
-            } catch (e) {
-              console.warn('cuePlaylist error:', e);
-            }
+              event.target.setVolume(playerState.volume);
+              
+              // Cue the playlist properly
+              event.target.cuePlaylist({
+                listType: 'playlist',
+                list: playlistId
+              });
 
-            setPlayerState(prev => ({
-              ...prev,
-              isReady: true,
-              totalTracks: videoIds.length,
-              statusText: 'রেডিও প্রস্তুত — গান শুনুন'
-            }));
+              setTimeout(() => {
+                if (isCancelled) return;
+                try {
+                  const playlist = event.target.getPlaylist();
+                  const total = Array.isArray(playlist) ? playlist.length : 0;
+                  setPlayerState(prev => ({
+                    ...prev,
+                    isReady: true,
+                    totalTracks: total,
+                    statusText: 'রেডিও প্রস্তুত — গান শুনুন 🎶'
+                  }));
 
-            if (isPlayingRef.current) {
-              event.target.playVideo();
+                  if (pendingPlayRef.current || isPlayingRef.current) {
+                    pendingPlayRef.current = false;
+                    event.target.unMute();
+                    event.target.playVideo();
+                  }
+                } catch (e) {}
+              }, 1200);
+            } catch (err) {
+              console.warn('Error onReady:', err);
             }
           },
           onStateChange: (event: any) => {
             if (isCancelled) return;
-            // 1: playing, 2: paused, 3: buffering, 0: ended
+            // 1: playing, 2: paused, 3: buffering, 0: ended, 5: cued
             if (event.data === 1) {
               isPlayingRef.current = true;
-              const ytIndex = event.target.getPlaylistIndex();
-              const trackIdx = typeof ytIndex === 'number' && ytIndex >= 0 ? ytIndex : currentTrackIndexRef.current;
-              setCurrentTrackIndex(trackIdx);
-
-              const currentTrack = currentPlaylist.tracks[trackIdx] || currentPlaylist.tracks[0];
-              const videoData = event.target.getVideoData();
-
-              setPlayerState(prev => ({
-                ...prev,
-                isPlaying: true,
-                currentTitle: currentTrack?.title || videoData?.title || 'ক্যাম্পাস গান চলছে...',
-                currentAuthor: currentTrack?.artist || videoData?.author || 'SEU Adda Radio',
-                currentIndex: trackIdx,
-                statusText: 'গান বাজছে 🎶'
-              }));
+              try {
+                const videoData = event.target.getVideoData();
+                const currentIndex = event.target.getPlaylistIndex();
+                const playlist = event.target.getPlaylist();
+                
+                setPlayerState(prev => ({
+                  ...prev,
+                  isPlaying: true,
+                  currentTitle: videoData?.title || 'বাংলা ক্যাম্পাস ক্লাসিক গান',
+                  currentAuthor: videoData?.author || 'SEU Adda Radio',
+                  currentIndex: typeof currentIndex === 'number' ? currentIndex : prev.currentIndex,
+                  totalTracks: Array.isArray(playlist) ? playlist.length : prev.totalTracks,
+                  statusText: 'গান বাজছে 🎶'
+                }));
+              } catch (e) {
+                // fallback
+              }
             } else if (event.data === 2) {
               isPlayingRef.current = false;
               setPlayerState(prev => ({
                 ...prev,
                 isPlaying: false,
-                statusText: 'গান সাময়িক বন্ধ আছে'
+                statusText: 'গান পজ করা আছে'
               }));
             } else if (event.data === 3) {
               setPlayerState(prev => ({
                 ...prev,
-                statusText: 'গান বাফারিং হচ্ছে...'
+                statusText: 'গান লোড হচ্ছে...'
               }));
+            } else if (event.data === 5) {
+              // Cued
+              try {
+                const videoData = event.target.getVideoData();
+                if (videoData?.title) {
+                  setPlayerState(prev => ({
+                    ...prev,
+                    currentTitle: videoData.title,
+                    currentAuthor: videoData.author || prev.currentAuthor
+                  }));
+                }
+              } catch (e) {}
             } else if (event.data === 0) {
-              // Video finished -> next video
-              event.target.nextVideo();
+              // Video ended -> play next video in playlist
+              try {
+                event.target.nextVideo();
+              } catch (e) {}
             }
           },
           onError: (event: any) => {
-            console.warn('YouTube Player Event Error:', event.data);
+            console.warn('YouTube Player Event Error Code:', event.data);
             setPlayerState(prev => ({
               ...prev,
-              statusText: 'গান লোড হতে সমস্যা, পরের গান চালু হচ্ছে...'
+              statusText: 'পরবর্তী গানে যাচ্ছি...'
             }));
             setTimeout(() => {
               try {
                 if (playerRef.current) playerRef.current.nextVideo();
               } catch (e) {}
-            }, 1000);
+            }, 800);
           }
         }
       });
     };
 
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube-nocookie.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-      window.onYouTubeIframeAPIReady = initPlayer;
+    if (!window.YT || !window.YT.Player) {
+      const existingScript = document.querySelector('script[src*="youtube.com/iframe_api"]');
+      if (!existingScript) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+      }
+      
+      const previousCallback = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (previousCallback) previousCallback();
+        createPlayer();
+      };
     } else {
-      initPlayer();
+      createPlayer();
     }
 
     return () => {
       isCancelled = true;
     };
-  }, [currentPlaylist]);
+  }, [playlistId]);
 
   const togglePlay = useCallback(() => {
-    if (!playerRef.current) return;
+    if (!playerRef.current) {
+      pendingPlayRef.current = true;
+      return;
+    }
     try {
       if (playerState.isPlaying) {
         playerRef.current.pauseVideo();
         isPlayingRef.current = false;
       } else {
-        const videoIds = currentPlaylist.tracks.map(t => t.videoId);
-        // If unstarted, load and play
-        playerRef.current.loadPlaylist(videoIds, currentTrackIndexRef.current, 0);
+        playerRef.current.unMute();
         playerRef.current.playVideo();
         isPlayingRef.current = true;
       }
     } catch (e) {
-      console.error('togglePlay exception:', e);
+      console.warn('Playback error:', e);
     }
-  }, [playerState.isPlaying, currentPlaylist]);
+  }, [playerState.isPlaying]);
 
   const play = useCallback(() => {
-    if (!playerRef.current) return;
-    try {
-      const videoIds = currentPlaylist.tracks.map(t => t.videoId);
-      playerRef.current.loadPlaylist(videoIds, currentTrackIndexRef.current, 0);
-      playerRef.current.playVideo();
-      isPlayingRef.current = true;
-    } catch (e) {
-      console.error(e);
+    isPlayingRef.current = true;
+    if (!playerRef.current) {
+      pendingPlayRef.current = true;
+      return;
     }
-  }, [currentPlaylist]);
+    try {
+      playerRef.current.unMute();
+      playerRef.current.playVideo();
+    } catch (e) {
+      console.warn(e);
+    }
+  }, []);
 
   const pause = useCallback(() => {
+    isPlayingRef.current = false;
+    pendingPlayRef.current = false;
     if (!playerRef.current) return;
     try {
       playerRef.current.pauseVideo();
-      isPlayingRef.current = false;
     } catch (e) {
-      console.error(e);
+      console.warn(e);
     }
   }, []);
 
@@ -209,7 +244,7 @@ export function useYouTubePlayer() {
     try {
       playerRef.current.nextVideo();
     } catch (e) {
-      console.error(e);
+      console.warn(e);
     }
   }, []);
 
@@ -218,7 +253,7 @@ export function useYouTubePlayer() {
     try {
       playerRef.current.previousVideo();
     } catch (e) {
-      console.error(e);
+      console.warn(e);
     }
   }, []);
 
@@ -228,18 +263,21 @@ export function useYouTubePlayer() {
     try {
       playerRef.current.setVolume(val);
     } catch (e) {
-      console.error(e);
+      console.warn(e);
     }
   }, []);
 
-  const changePlaylist = useCallback((playlist: Playlist) => {
-    setCurrentPlaylist(playlist);
-    setCurrentTrackIndex(0);
+  const changePlaylist = useCallback((newPlaylistId: string) => {
+    setPlaylistId(newPlaylistId);
     isPlayingRef.current = true;
-    if (playerRef.current) {
-      const videoIds = playlist.tracks.map(t => t.videoId);
+    pendingPlayRef.current = true;
+    if (playerRef.current && typeof playerRef.current.loadPlaylist === 'function') {
       try {
-        playerRef.current.loadPlaylist(videoIds, 0, 0);
+        playerRef.current.loadPlaylist({
+          listType: 'playlist',
+          list: newPlaylistId
+        });
+        playerRef.current.unMute();
         playerRef.current.playVideo();
       } catch (e) {}
     }
@@ -248,13 +286,13 @@ export function useYouTubePlayer() {
   return {
     containerRef,
     playerState,
-    currentPlaylist,
     togglePlay,
     play,
     pause,
     nextTrack,
     prevTrack,
     setVolume,
-    changePlaylist
+    changePlaylist,
+    playlistId
   };
 }

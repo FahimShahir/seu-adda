@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import { CAMPUS_HOTSPOTS, Hotspot } from '../../data/dialogues';
 import { CharacterBubble } from './CharacterBubble';
 import { RainCanvas } from './RainCanvas';
-import { Music, Coffee, Lightbulb, GraduationCap, Shield } from 'lucide-react';
+import { Music, Coffee, Lightbulb } from 'lucide-react';
 
 interface CampusSceneProps {
   isNight: boolean;
@@ -37,7 +37,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   }, [activeHotspot]);
 
   const handleHotspotClick = (hotspot: Hotspot) => {
-    // Pick random dialogue
+    // Pick a random dialogue from the hotspot list
     const randomIndex = Math.floor(Math.random() * hotspot.dialogues.length);
     setDialogueText(hotspot.dialogues[randomIndex]);
     setActiveHotspot(hotspot);
@@ -47,10 +47,11 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
       onTogglePlay();
     } else if (hotspot.actionType === 'cheers') {
       onTeaClink();
+      // Burst confetti of tea cups and warmth
       confetti({
         particleCount: 30,
-        spread: 65,
-        origin: { y: 0.78, x: 0.51 },
+        spread: 60,
+        origin: { y: 0.78, x: 0.53 },
         colors: ['#D97706', '#F59E0B', '#B45309', '#FDE68A']
       });
     } else if (hotspot.actionType === 'lamp') {
@@ -59,7 +60,14 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   };
 
   return (
-    <div className="relative w-full max-w-2xl sm:max-w-3xl md:max-w-4xl mx-auto rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 aspect-[1684/2528] max-h-[75vh] sm:max-h-[80vh]">
+    <div
+      className="relative mx-auto rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 aspect-[1684/2528] touch-manipulation select-none"
+      style={{
+        width: '100%',
+        maxWidth: 'min(100%, calc((100dvh - 135px) * 1684 / 2528))',
+        maxHeight: 'calc(100dvh - 135px)'
+      }}
+    >
       {/* Base Artwork - Day Mode */}
       <img
         src="./images/campus-day.jpg"
@@ -78,7 +86,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
         }`}
       />
 
-      {/* Atmospheric Ambient Lighting Overlay */}
+      {/* Ambient Lighting Gradient Overlay */}
       <div
         className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 ${
           isNight
@@ -87,17 +95,17 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
         }`}
       />
 
-      {/* Rain Simulation Canvas */}
+      {/* Rain Particle Effect */}
       <RainCanvas enabled={isRain} />
 
-      {/* Interactive Hotspots for all 19 members/objects */}
+      {/* Interactive Hotspot Buttons for Every Member */}
       {CAMPUS_HOTSPOTS.map((hotspot) => {
         const isActive = activeHotspot?.id === hotspot.id;
 
         return (
           <div
             key={hotspot.id}
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer group min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]"
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer group touch-manipulation"
             style={{
               left: `${hotspot.x}%`,
               top: `${hotspot.y}%`,
@@ -105,26 +113,25 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
               height: `${hotspot.height}%`
             }}
             onClick={() => handleHotspotClick(hotspot)}
-            title={hotspot.title}
+            title={`${hotspot.name} — ক্লিক করে কথা শুনুন`}
           >
-            {/* Hit Target Outline */}
+            {/* Clickable Area Highlight */}
             <div
-              className={`w-full h-full rounded-full sm:rounded-2xl transition-all duration-300 flex items-center justify-center ${
+              className={`w-full h-full rounded-2xl transition-all duration-300 flex items-center justify-center ${
                 isActive
-                  ? 'ring-2 ring-amber-400 bg-amber-400/25 shadow-lg shadow-amber-500/20'
+                  ? 'ring-2 ring-amber-400 bg-amber-400/25 shadow-lg'
                   : 'hover:bg-amber-400/15 group-hover:ring-1 group-hover:ring-amber-300/40'
               }`}
             >
-              {/* Guitarist Special Badges */}
-              {hotspot.id === 'guitarist_main' && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 p-1.5 rounded-full shadow-lg animate-bounce group-hover:scale-110 transition">
+              {/* Central Guitarist Badges & Music Notes */}
+              {hotspot.id === 'guitarist' && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 p-1.5 rounded-full shadow-lg animate-bounce group-hover:scale-110 transition">
                   <Music size={13} className={isPlaying ? 'animate-spin' : ''} />
                 </div>
               )}
 
-              {/* Tea Cups Special Badge */}
-              {hotspot.id === 'tea_cups_plate' && (
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600 text-white p-1 rounded-full shadow-lg group-hover:scale-110 transition">
+              {hotspot.id === 'tea_cups' && (
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600/90 text-white p-1 rounded-full shadow-lg group-hover:scale-110 transition">
                   <Coffee size={12} />
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs opacity-75 animate-steam">
                     ♨️
@@ -132,42 +139,27 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
                 </div>
               )}
 
-              {/* Ceiling Lamp Special Badge */}
-              {hotspot.id === 'hanging_lamp_day_night' && (
+              {hotspot.id === 'hanging_lamp' && (
                 <div
                   className={`absolute -bottom-2 left-1/2 -translate-x-1/2 p-1.5 rounded-full shadow-lg transition ${
                     isNight
                       ? 'bg-yellow-400 text-slate-900 animate-pulseGlow'
-                      : 'bg-slate-800 text-yellow-300'
+                      : 'bg-slate-700/80 text-yellow-300'
                   }`}
                 >
                   <Lightbulb size={13} />
                 </div>
               )}
 
-              {/* Signboard Badge */}
-              {hotspot.id === 'seu_signboard' && (
-                <div className="absolute -top-2 right-2 bg-blue-600/90 text-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100 transition">
-                  <GraduationCap size={11} />
-                </div>
-              )}
-
-              {/* Security Guard Badge */}
-              {hotspot.id === 'turnstile_guard' && (
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-emerald-600/90 text-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100 transition">
-                  <Shield size={11} />
-                </div>
-              )}
-
-              {/* Floating Music Notes Animation */}
-              {hotspot.id === 'guitarist_main' && isPlaying && (
+              {/* Music notes floating when music plays */}
+              {hotspot.id === 'guitarist' && isPlaying && (
                 <>
-                  <span className="absolute -top-6 left-1 text-amber-300 text-sm animate-floatNote pointer-events-none">
+                  <span className="absolute -top-6 left-2 text-amber-300 text-xs sm:text-sm animate-floatNote pointer-events-none">
                     🎵
                   </span>
                   <span
-                    className="absolute -top-8 right-1 text-yellow-200 text-xs animate-floatNote pointer-events-none"
-                    style={{ animationDelay: '1.2s' }}
+                    className="absolute -top-8 right-2 text-yellow-200 text-xs animate-floatNote pointer-events-none"
+                    style={{ animationDelay: '1s' }}
                   >
                     🎶
                   </span>
