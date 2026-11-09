@@ -62,7 +62,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden border-2 border-amber-500/60 shadow-xl shadow-amber-500/20 bg-slate-800 transition-transform duration-300 group-hover:scale-105">
               <img
                 src="./images/developer.jpg"
-                alt="Shahir - Developer of SEU Adda"
+                alt="Fahim Shahir - Creator & Developer of SEU Adda"
                 className="w-full h-full object-cover object-top"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
@@ -70,15 +70,15 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
               />
             </div>
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md whitespace-nowrap flex items-center gap-1">
-              <span>👨‍💻 ক্রিয়েটর</span>
+              <span>👨‍💻 ক্রিয়েটর & ডেভেলপার</span>
             </div>
           </div>
 
           <h2 id="developer-modal-title" className="text-lg sm:text-xl font-black text-white flex items-center justify-center gap-1.5 mt-1">
-            <span>মোঃ শাহীর (Shahir)</span>
+            <span>ফাহিম শাহীর (Fahim Shahir)</span>
           </h2>
           <p className="text-xs text-amber-300/90 font-medium mt-0.5">
-            সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ডেভেলপার
+            সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর & ডেভেলপার
           </p>
           <p className="text-[11px] text-slate-400 mt-2 max-w-xs leading-relaxed">
             সাউথইস্ট বিশ্ববিদ্যালয়ের প্রাণবন্ত ক্যাম্পাস আড্ডা, গান ও স্মৃতিকে চিরভাস্বর করে রাখার জন্য এই প্ল্যাটফর্মটি তৈরি করা হয়েছে। ☕❤️

@@ -42,7 +42,7 @@ interface PrivateRoomModalProps {
   initialViewTab?: 'info' | 'history';
 }
 
-const DEPARTMENTS = ['CSE', 'BBA', 'EEE', 'English', 'Pharmacy', 'Law'];
+const SUGGESTED_DEPTS = ['CSE', 'BBA', 'EEE', 'Textile', 'Pharmacy', 'Law', 'English', 'Civil'];
 
 export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
   isOpen,
@@ -372,19 +372,31 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   </div>
                 </div>
 
-                {/* Department Selector */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-amber-400">আপনার ডিপার্টমেন্ট</label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
-                    {DEPARTMENTS.map((dept) => (
+                {/* Department Selector (Free-text with quick suggestions) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-amber-400">আপনার ডিপার্টমেন্ট</label>
+                    <span className="text-[10px] text-slate-400">যেকোনো ডিপার্টমেন্ট লিখতে পারেন</span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="যেমন: CSE, BBA, Textile, Architecture, Law..."
+                    value={userDept}
+                    onChange={(e) => setUserDept(e.target.value)}
+                    className="w-full bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                  />
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                    <span className="text-[10px] text-slate-400">পছন্দ করুন:</span>
+                    {SUGGESTED_DEPTS.map((dept) => (
                       <button
                         type="button"
                         key={dept}
                         onClick={() => setUserDept(dept)}
-                        className={`py-1 rounded-xl text-xs font-semibold border transition ${
-                          userDept === dept
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition ${
+                          userDept.toLowerCase() === dept.toLowerCase()
                             ? 'bg-amber-500 border-amber-500 text-slate-950 font-bold'
-                            : 'bg-slate-950/50 border-slate-800 text-slate-300'
+                            : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                         }`}
                       >
                         {dept}
@@ -539,19 +551,31 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   </div>
                 </div>
 
-                {/* Department Selector */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-amber-400">আপনার ডিপার্টমেন্ট</label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
-                    {DEPARTMENTS.map((dept) => (
+                {/* Department Selector (Free-text with quick suggestions) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-amber-400">আপনার ডিপার্টমেন্ট</label>
+                    <span className="text-[10px] text-slate-400">যেকোনো ডিপার্টমেন্ট লিখতে পারেন</span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="যেমন: CSE, BBA, Textile, Architecture, Law..."
+                    value={userDept}
+                    onChange={(e) => setUserDept(e.target.value)}
+                    className="w-full bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                  />
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                    <span className="text-[10px] text-slate-400">পছন্দ করুন:</span>
+                    {SUGGESTED_DEPTS.map((dept) => (
                       <button
                         type="button"
                         key={dept}
                         onClick={() => setUserDept(dept)}
-                        className={`py-1 rounded-xl text-xs font-semibold border transition ${
-                          userDept === dept
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition ${
+                          userDept.toLowerCase() === dept.toLowerCase()
                             ? 'bg-amber-500 border-amber-500 text-slate-950 font-bold'
-                            : 'bg-slate-950/50 border-slate-800 text-slate-300'
+                            : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                         }`}
                       >
                         {dept}

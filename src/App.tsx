@@ -42,7 +42,7 @@ export function App() {
     changePlaylist,
     playCustomSource,
     playlistId
-  } = useYouTubePlayer('PLOPZkRWRrUEk');
+  } = useYouTubePlayer('yYKHuW_FS_U');
 
   // Private Adda Room Hook (2-hour ephemeral rooms with sync music & chat)
   const {
@@ -83,6 +83,8 @@ export function App() {
 
   const {
     onlineCount,
+    cheersCount,
+    recordCheers,
     confessions,
     addConfession,
     likeConfession
@@ -121,6 +123,7 @@ export function App() {
 
   const handleCheers = () => {
     playTeaClink();
+    recordCheers();
     confetti({
       particleCount: 35,
       spread: 70,
@@ -184,6 +187,7 @@ export function App() {
         {/* Floating Top Header Navigation with Integrated Mood Selector & Live Dhaka Weather */}
         <HeaderBar
           onlineCount={onlineCount}
+          cheersCount={cheersCount}
           currentMood={currentMood}
           dhakaTime={dhakaTime}
           weather={weather}
@@ -235,6 +239,19 @@ export function App() {
           onToggleRain={handleToggleRain}
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
         />
+
+        {/* Developer Publicity Watermark (Fahim Shahir) */}
+        <div className="absolute bottom-2.5 left-3 z-20 pointer-events-auto hidden md:block">
+          <button
+            type="button"
+            onClick={() => setIsDeveloperOpen(true)}
+            className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-white/10 hover:border-amber-500/50 backdrop-blur-md text-[11px] text-slate-300 hover:text-amber-300 transition shadow-lg cursor-pointer"
+            title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর ও ডেভেলপার"
+          >
+            <span>Crafted with ❤️ by</span>
+            <span className="font-bold text-amber-400 group-hover:underline">Fahim Shahir</span>
+          </button>
+        </div>
       </main>
 
       {/* Playlist Selector & Custom Song Modal */}

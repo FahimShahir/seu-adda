@@ -55,6 +55,13 @@ const DEFAULT_CONFESSIONS: Confession[] = [
 
 export function usePresenceAndConfessions() {
   const [onlineCount, setOnlineCount] = useState<number>(58);
+  const [cheersCount, setCheersCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('seu_cheers_count');
+      if (saved) return parseInt(saved, 10) || 420;
+    } catch (_) {}
+    return 420;
+  });
   const [confessions, setConfessions] = useState<Confession[]>(() => {
     try {
       const saved = localStorage.getItem('seu_confessions');
@@ -72,7 +79,8 @@ export function usePresenceAndConfessions() {
   const mqttClientRef = useRef<MqttClient | null>(null);
 
   // Auto-sync with PHP MySQL API if hosted on PHP server (InfinityFree)
-  useEffect(() => {
+  const syncFromBackend = useCallback(() => {
+    // 1. Fetch Confessions
     fetch('./api/confessions.php?action=list')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -84,7 +92,26 @@ export function usePresenceAndConfessions() {
         }
       })
       .catch(() => {});
+
+    // 2. Fetch Global Stats & Cheers Count
+    fetch('./api/stats.php?action=get')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.cheers_count === 'number') {
+          setCheersCount(data.cheers_count);
+          try {
+            localStorage.setItem('seu_cheers_count', String(data.cheers_count));
+          } catch (_) {}
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    syncFromBackend();
+    const interval = setInterval(syncFromBackend, 25000);
+    return () => clearInterval(interval);
+  }, [syncFromBackend]);
 
   // Calculate realistic live online presence based on current hour in Bangladesh
   useEffect(() => {
@@ -156,6 +183,14 @@ export function usePresenceAndConfessions() {
               } catch (_) {}
               return updated;
             });
+          } else if (event?.type === 'CHEERS_INCREMENT') {
+            setCheersCount((prev) => {
+              const next = prev + 1;
+              try {
+                localStorage.setItem('seu_cheers_count', String(next));
+              } catch (_) {}
+              return next;
+            });
           }
         } catch (_) {}
       });
@@ -200,8 +235,9 @@ export function usePresenceAndConfessions() {
   };
 
   const addConfession = useCallback((author: string, dept: string, text: string) => {
+    const tempId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 6);
     const newConfession: Confession = {
-      id: Date.now().toString() + '_' + Math.random().toString(36).substring(2, 6),
+      id: tempId,
       author: author.trim() || 'সাউথইস্টের একজন',
       dept: dept.trim() || 'General',
       text: text.trim(),
@@ -225,10 +261,25 @@ export function usePresenceAndConfessions() {
       body: JSON.stringify({
         author: newConfession.author,
         dept: newConfession.dept,
-        batch: '52nd Batch',
+        batch: 'Campus Adda',
         text: newConfession.text
       })
-    }).catch(() => {});
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => {
+        if (res && res.id) {
+          const realId = String(res.id);
+          setConfessions((prev) => {
+            const updated = prev.map((c) => (c.id === tempId ? { ...c, id: realId } : c));
+            try {
+              localStorage.setItem('seu_confessions', JSON.stringify(updated));
+            } catch (_) {}
+            broadcastUpdate(updated);
+            return updated;
+          });
+        }
+      })
+      .catch(() => {});
 
     // Publish to real-time MQTT broker for cross-device broadcast
     try {
@@ -262,7 +313,20 @@ export function usePresenceAndConfessions() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
-    }).catch(() => {});
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => {
+        if (res && typeof res.likes === 'number') {
+          setConfessions((prev) => {
+            const updated = prev.map((c) => (c.id === id ? { ...c, likes: res.likes } : c));
+            try {
+              localStorage.setItem('seu_confessions', JSON.stringify(updated));
+            } catch (_) {}
+            return updated;
+          });
+        }
+      })
+      .catch(() => {});
 
     // Publish to real-time MQTT broker
     try {
@@ -278,8 +342,47 @@ export function usePresenceAndConfessions() {
     } catch (_) {}
   }, []);
 
+  const recordCheers = useCallback(() => {
+    setCheersCount((prev) => {
+      const next = prev + 1;
+      try {
+        localStorage.setItem('seu_cheers_count', String(next));
+      } catch (_) {}
+      return next;
+    });
+
+    // Save to PHP MySQL Backend
+    fetch('./api/stats.php?action=cheers', {
+      method: 'POST'
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => {
+        if (res && typeof res.cheers_count === 'number') {
+          setCheersCount(res.cheers_count);
+          try {
+            localStorage.setItem('seu_cheers_count', String(res.cheers_count));
+          } catch (_) {}
+        }
+      })
+      .catch(() => {});
+
+    // Publish to MQTT
+    try {
+      if (mqttClientRef.current?.connected) {
+        mqttClientRef.current.publish(
+          CONFESSIONS_TOPIC,
+          JSON.stringify({
+            type: 'CHEERS_INCREMENT'
+          })
+        );
+      }
+    } catch (_) {}
+  }, []);
+
   return {
     onlineCount,
+    cheersCount,
+    recordCheers,
     confessions,
     addConfession,
     likeConfession

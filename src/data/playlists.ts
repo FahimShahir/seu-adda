@@ -8,6 +8,13 @@ export interface Playlist {
 
 export const CAMPUS_PLAYLISTS: Playlist[] = [
   {
+    id: 'yYKHuW_FS_U',
+    name: '☕ কফি হাউজের সেই আড্ডা ও কালজয়ী গান',
+    description: 'মান্না দে — কফি হাউজের সেই আড্ডাটা আজ আর নেই',
+    emoji: '☕',
+    isNightTheme: true
+  },
+  {
     id: 'PLOPZkRWRrUEk',
     name: '🎸 SEU আনপ্লাগড ও ক্যাম্পাস ব্যান্ড',
     description: 'আর্নব, আর্টসেল, শিরোনামহীন, মেঘদল, অর্থহীন ও মাইলসের গান',

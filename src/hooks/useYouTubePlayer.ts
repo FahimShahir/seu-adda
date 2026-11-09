@@ -121,10 +121,10 @@ export function useYouTubePlayer(initialPlaylistId: string) {
     isPlaying: false,
     isReady: false,
     volume: 85,
-    currentTitle: 'ক্যাম্পাস অ্যাকোস্টিক আড্ডা',
-    currentAuthor: 'SEU Adda Radio',
+    currentTitle: 'কফি হাউসের সেই আড্ডাটা আজ আর নেই',
+    currentAuthor: 'মান্না দে (Manna Dey)',
     currentIndex: 0,
-    totalTracks: 0,
+    totalTracks: 1,
     statusText: 'গিটার স্পর্শ করে গান চালু করুন'
   });
 
@@ -197,17 +197,22 @@ export function useYouTubePlayer(initialPlaylistId: string) {
                 }
               }
 
-              // Cue the playlist properly
-              event.target.cuePlaylist({
-                listType: 'playlist',
-                list: playlistId
-              });
+              // Cue video or playlist properly
+              const isSingleVideo = /^[a-zA-Z0-9_-]{11}$/.test(playlistId);
+              if (isSingleVideo) {
+                event.target.cueVideoById(playlistId);
+              } else {
+                event.target.cuePlaylist({
+                  listType: 'playlist',
+                  list: playlistId
+                });
+              }
 
               setTimeout(() => {
                 if (isCancelled) return;
                 try {
                   const playlist = event.target.getPlaylist();
-                  const total = Array.isArray(playlist) ? playlist.length : 0;
+                  const total = Array.isArray(playlist) ? playlist.length : 1;
                   setPlayerState(prev => ({
                     ...prev,
                     isReady: true,
@@ -410,14 +415,25 @@ export function useYouTubePlayer(initialPlaylistId: string) {
     setPlaylistId(newPlaylistId);
     isPlayingRef.current = true;
     pendingPlayRef.current = true;
-    if (playerRef.current && typeof playerRef.current.loadPlaylist === 'function') {
+    if (playerRef.current) {
       try {
-        playerRef.current.loadPlaylist({
-          listType: 'playlist',
-          list: newPlaylistId
-        });
-        playerRef.current.unMute();
-        playerRef.current.playVideo();
+        const isVideo = /^[a-zA-Z0-9_-]{11}$/.test(newPlaylistId);
+        if (isVideo) {
+          if (typeof playerRef.current.loadVideoById === 'function') {
+            playerRef.current.loadVideoById(newPlaylistId, 0);
+            playerRef.current.unMute?.();
+            playerRef.current.playVideo?.();
+          }
+        } else {
+          if (typeof playerRef.current.loadPlaylist === 'function') {
+            playerRef.current.loadPlaylist({
+              listType: 'playlist',
+              list: newPlaylistId
+            });
+            playerRef.current.unMute?.();
+            playerRef.current.playVideo?.();
+          }
+        }
       } catch (e) {}
     }
   }, []);

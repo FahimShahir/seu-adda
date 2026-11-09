@@ -111,6 +111,18 @@ function initSqliteTables(PDO $pdo): void {
             likes INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS campus_stats (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            cheers_count INTEGER DEFAULT 420,
+            mood_general INTEGER DEFAULT 50,
+            mood_heartbreak INTEGER DEFAULT 15,
+            mood_exams INTEGER DEFAULT 30,
+            mood_canteen INTEGER DEFAULT 65,
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO campus_stats (id, cheers_count, mood_general, mood_heartbreak, mood_exams, mood_canteen)
+        VALUES (1, 420, 50, 15, 30, 65);
     ");
 }
 

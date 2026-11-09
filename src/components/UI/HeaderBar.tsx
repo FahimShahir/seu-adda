@@ -18,6 +18,7 @@ import { DhakaWeather } from '../../hooks/useDhakaClockAndWeather';
 
 interface HeaderBarProps {
   onlineCount: number;
+  cheersCount?: number;
   currentMood: AddaMood;
   dhakaTime: string;
   weather: DhakaWeather | null;
@@ -33,6 +34,7 @@ interface HeaderBarProps {
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   onlineCount,
+  cheersCount,
   currentMood,
   dhakaTime,
   weather,
@@ -129,6 +131,18 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               {dhakaTime && (
                 <span className="hidden sm:inline text-amber-300/80 font-medium shrink-0">
                   • {dhakaTime}
+                </span>
+              )}
+              {typeof cheersCount === 'number' && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCheers();
+                  }}
+                  className="hidden md:inline text-amber-400 font-semibold shrink-0 cursor-pointer hover:underline"
+                  title="চায়ের কাপে চিয়ার্স দিতে ক্লিক করুন"
+                >
+                  • ☕ {cheersCount}
                 </span>
               )}
             </div>
@@ -229,7 +243,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <span className="hidden sm:inline font-semibold">ফটো কার্ড</span>
           </button>
 
-          {/* 3. More Options Dropdown ("⋯" / "আরও ▾") */}
+          {/* 3. Developer Profile Publicity Button (Fahim Shahir) */}
+          {onOpenDeveloper && (
+            <button
+              type="button"
+              onClick={onOpenDeveloper}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/35 text-amber-300 text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-500/50 shadow-md shadow-amber-500/10 transition active:scale-95 shrink-0 cursor-pointer"
+              title="ক্রিয়েটর ও ডেভেলপার প্রোফাইল — ফাহিম শাহীর"
+            >
+              <Code2 size={12} className="text-amber-400 animate-pulse" />
+              <span className="font-bold tracking-tight">Fahim Shahir</span>
+            </button>
+          )}
+
+          {/* 4. More Options Dropdown ("⋯" / "আরও ▾") */}
           <div ref={moreMenuRef} className="relative shrink-0">
             <button
               type="button"
@@ -296,8 +323,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 shrink-0">
                     <Coffee size={14} />
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-slate-100">চায়ের কাপে চিয়ার্স</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-slate-100 flex items-center justify-between">
+                      <span>চায়ের কাপে চিয়ার্স</span>
+                      {typeof cheersCount === 'number' && (
+                        <span className="text-[10px] text-amber-400 font-bold bg-amber-500/15 px-1.5 py-0.5 rounded-full border border-amber-500/30">
+                          {cheersCount} কাপ ☕
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-slate-400 truncate">বন্ধুদের সাথে এক কাপ চা টোকা দিন ☕</div>
                   </div>
                 </button>
