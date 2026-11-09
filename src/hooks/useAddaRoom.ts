@@ -105,7 +105,8 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           const saved = localStorage.getItem(`${ROOM_STORAGE_PREFIX}${r.trim().toUpperCase()}`);
           if (saved) {
             const parsed = JSON.parse(saved);
-            if (parsed && parsed.expiresAt > Date.now()) {
+            const myTabId = sessionStorage.getItem('seu_tab_user_id');
+            if (parsed && parsed.expiresAt > Date.now() && myTabId && parsed.participants?.some((p: any) => p.id === myTabId)) {
               return parsed;
             }
           }
@@ -349,6 +350,28 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           }
         });
 
+        // Strict 1-to-1 character uniqueness enforcement across all room participants
+        const finalParticipants: RoomParticipant[] = [];
+        const usedCharacters = new Set<string>();
+        // First-joined or host participants retain priority
+        const sortedList = Array.from(pMap.values()).sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+
+        for (const p of sortedList) {
+          let charId = p.characterId;
+          if (usedCharacters.has(charId)) {
+            const pool = CAMPUS_CHARACTERS.filter((c) => c.gender === p.gender);
+            const free = pool.find((c) => !usedCharacters.has(c.id)) || CAMPUS_CHARACTERS.find((c) => !usedCharacters.has(c.id));
+            if (free) {
+              charId = free.id;
+              if (p.id === me.id) {
+                saveCurrentUser(me.name, me.dept, me.gender, charId);
+              }
+            }
+          }
+          usedCharacters.add(charId);
+          finalParticipants.push({ ...p, characterId: charId });
+        }
+
         if (
           incoming.currentSong &&
           incoming.currentSong.source !== prev.currentSong?.source &&
@@ -362,7 +385,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           createdAt: incoming.createdAt,
           expiresAt: incoming.expiresAt,
           currentSong: incoming.currentSong || prev.currentSong,
-          participants: Array.from(pMap.values()),
+          participants: finalParticipants,
           messages: allMsgs
         };
       });
@@ -449,11 +472,29 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           updateRoomState((prev) => {
             if (!prev) return null;
             const exists = prev.participants.some((p) => p.id === newParticipant.id);
+
+            // Strict character uniqueness: verify no other participant in the room holds this character
+            const takenCharIds = new Set(
+              prev.participants
+                .filter((p) => p.id !== newParticipant.id)
+                .map((p) => p.characterId)
+            );
+            let finalCharId = newParticipant.characterId;
+            if (takenCharIds.has(finalCharId)) {
+              const pool = CAMPUS_CHARACTERS.filter((c) => c.gender === newParticipant.gender);
+              const free = pool.find((c) => !takenCharIds.has(c.id)) || CAMPUS_CHARACTERS.find((c) => !takenCharIds.has(c.id));
+              if (free) finalCharId = free.id;
+            }
+            const normalizedParticipant: RoomParticipant = {
+              ...newParticipant,
+              characterId: finalCharId
+            };
+
             const updatedParticipants = exists
               ? prev.participants.map((p) =>
-                  p.id === newParticipant.id ? { ...p, lastSeen: Date.now() } : p
+                  p.id === newParticipant.id ? { ...p, characterId: finalCharId, lastSeen: Date.now() } : p
                 )
-              : [...prev.participants, newParticipant];
+              : [...prev.participants, normalizedParticipant];
 
             const updatedMessages =
               joinMsg && !prev.messages.some((m) => m.id === joinMsg.id)
@@ -1047,7 +1088,25 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             roomId: cleanedId,
             participant: newParticipant
           })
-        }).catch(() => {});
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((joinRes) => {
+            if (joinRes && joinRes.characterId && joinRes.characterId !== assignedCharId) {
+              // Server reassigned to an available free character to maintain 1-to-1 uniqueness
+              const authoritativeCharId = joinRes.characterId;
+              saveCurrentUser(cleanName, cleanDept, gender, authoritativeCharId);
+              updateRoomState((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  participants: prev.participants.map((p) =>
+                    p.id === currentUser.id ? { ...p, characterId: authoritativeCharId } : p
+                  )
+                };
+              });
+            }
+          })
+          .catch(() => {});
 
         // Fetch full server room state from MySQL
         fetch(`./api/rooms.php?action=get&room_id=${cleanedId}`)

@@ -59,6 +59,11 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   const handleHotspotClick = (hotspot: Hotspot) => {
     // If inside an active room: NEVER trigger static offline campus adda dialogues
     if (isRoomActive) {
+      const owner = roomParticipants?.find((p) => p.characterId === hotspot.id);
+      if (owner && owner.id !== currentUserId) {
+        // Character is claimed by another room participant: do NOT transfer to prevent duplication!
+        return;
+      }
       if (onTransferCharacter && CAMPUS_CHARACTERS.some((c) => c.id === hotspot.id)) {
         onTransferCharacter(hotspot.id);
       }

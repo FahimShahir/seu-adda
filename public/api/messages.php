@@ -22,11 +22,25 @@ switch ($action) {
             jsonResponse(['error' => 'মেসেজ বা প্রেরকের তথ্য খালি'], 400);
         }
 
-        // Verify room is not expired
+        // Verify room exists (with auto-recovery so valid chat is never dropped)
         $stmt = $pdo->prepare("SELECT id FROM rooms WHERE id = :id");
         $stmt->execute([':id' => $roomId]);
         if (!$stmt->fetch()) {
-            jsonResponse(['error' => 'রুমটি মেয়াদোত্তীর্ণ বা পাওয়া যায়নি'], 404);
+            $nowUtc = gmdate('Y-m-d H:i:s');
+            $expiresUtc = gmdate('Y-m-d H:i:s', time() + 7200);
+            $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $sql = ($driver === 'sqlite')
+                ? "INSERT OR IGNORE INTO rooms (id, name, host_id, host_name, created_at, expires_at) VALUES (:id, :name, :host_id, :host_name, :created_at, :expires_at)"
+                : "INSERT IGNORE INTO rooms (id, name, host_id, host_name, created_at, expires_at) VALUES (:id, :name, :host_id, :host_name, :created_at, :expires_at)";
+            $healStmt = $pdo->prepare($sql);
+            $healStmt->execute([
+                ':id' => $roomId,
+                ':name' => 'সাউথইস্ট আড্ডা রুম',
+                ':host_id' => $senderId,
+                ':host_name' => $senderName,
+                ':created_at' => $nowUtc,
+                ':expires_at' => $expiresUtc
+            ]);
         }
 
         $ins = $pdo->prepare("

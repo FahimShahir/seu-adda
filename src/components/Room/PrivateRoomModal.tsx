@@ -84,6 +84,9 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
   const [isAddingSong, setIsAddingSong] = useState(false);
   const [songUrlInput, setSongUrlInput] = useState('');
 
+  // Live taken characters mapping for Join Tab (characterId -> ownerName)
+  const [takenCharactersMap, setTakenCharactersMap] = useState<Record<string, string>>({});
+
   // Auto-fill from props
   useEffect(() => {
     if (currentUser.name && !userName) setUserName(currentUser.name);
@@ -98,6 +101,63 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
       setTab('join');
     }
   }, [initialRoomId]);
+
+  // Live query target room taken characters whenever roomIdInput changes
+  useEffect(() => {
+    const cleanId = roomIdInput.trim().toUpperCase();
+    if (!cleanId || cleanId.length < 4) {
+      setTakenCharactersMap({});
+      return;
+    }
+
+    let isCancelled = false;
+
+    // 1. Check local storage if previously saved
+    try {
+      const saved = localStorage.getItem(`seu_adda_room_${cleanId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.participants)) {
+          const map: Record<string, string> = {};
+          parsed.participants.forEach((p: any) => {
+            if (p.characterId && p.id !== currentUser.id) {
+              map[p.characterId] = p.name || 'বন্ধু';
+            }
+          });
+          setTakenCharactersMap(map);
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fetch authoritative room state from PHP MySQL API
+    fetch(`./api/rooms.php?action=get&room_id=${cleanId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((serverRoom) => {
+        if (isCancelled || !serverRoom || !Array.isArray(serverRoom.participants)) return;
+        const map: Record<string, string> = {};
+        serverRoom.participants.forEach((p: any) => {
+          if (p.characterId && p.id !== currentUser.id) {
+            map[p.characterId] = p.name || 'বন্ধু';
+          }
+        });
+        setTakenCharactersMap(map);
+
+        // Auto-switch to first available free character if currently selected character is taken
+        setCharacterId((prevCharId) => {
+          if (map[prevCharId]) {
+            const pool = CAMPUS_CHARACTERS.filter((c) => c.gender === gender);
+            const free = pool.find((c) => !map[c.id]) || CAMPUS_CHARACTERS.find((c) => !map[c.id]);
+            return free ? free.id : prevCharId;
+          }
+          return prevCharId;
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [roomIdInput, currentUser.id, gender]);
 
   // When gender changes, auto-pick default character for that gender if mismatched
   const handleGenderChange = (newGender: 'male' | 'female') => {
@@ -119,7 +179,16 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const success = onJoinRoom(roomIdInput, userName, userDept, gender, characterId);
+    let finalCharId = characterId;
+    if (takenCharactersMap[finalCharId]) {
+      const pool = CAMPUS_CHARACTERS.filter((c) => c.gender === gender);
+      const free = pool.find((c) => !takenCharactersMap[c.id]) || CAMPUS_CHARACTERS.find((c) => !takenCharactersMap[c.id]);
+      if (free) {
+        finalCharId = free.id;
+        setCharacterId(free.id);
+      }
+    }
+    const success = onJoinRoom(roomIdInput, userName, userDept, gender, finalCharId);
     if (success) {
       onClose(); // Automatically close modal so chat happens on main screen!
     }
@@ -337,16 +406,8 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
                     {CAMPUS_CHARACTERS.filter((c) => c.gender === gender && c.zone === pickerZone).map((c) => {
                       const isSelected = c.id === characterId;
-                      let isTakenInTarget = false;
-                      try {
-                        const saved = localStorage.getItem(`seu_adda_room_${roomIdInput.trim().toUpperCase()}`);
-                        if (saved) {
-                          const parsed = JSON.parse(saved);
-                          if (parsed && Array.isArray(parsed.participants)) {
-                            isTakenInTarget = parsed.participants.some((p: any) => p.characterId === c.id && p.id !== currentUser.id);
-                          }
-                        }
-                      } catch (_) {}
+                      const ownerName = takenCharactersMap[c.id];
+                      const isTakenInTarget = Boolean(ownerName);
 
                       return (
                         <button
@@ -354,18 +415,24 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                           type="button"
                           disabled={isTakenInTarget}
                           onClick={() => !isTakenInTarget && setCharacterId(c.id)}
-                          className={`flex items-center gap-1.5 p-1.5 rounded-xl text-left border transition text-xs ${
+                          className={`flex items-center justify-between gap-1 p-1.5 rounded-xl text-left border transition text-xs ${
                             isSelected
                               ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-sm'
                               : isTakenInTarget
-                              ? 'bg-slate-950/80 border-red-950/40 text-slate-500 opacity-40 cursor-not-allowed'
+                              ? 'bg-slate-950/90 border-rose-900/50 text-slate-500 opacity-50 cursor-not-allowed'
                               : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
-                          title={isTakenInTarget ? 'এই ক্যারেক্টারটি ইতিমধ্যে রুমে একজন নিয়েছেন' : c.name}
+                          title={isTakenInTarget ? `এই ক্যারেক্টারটি ইতিমধ্যে ${ownerName} দখল করে রেখেছেন!` : c.name}
                         >
-                          <span className="text-sm shrink-0">{c.emoji}</span>
-                          <span className="truncate">{c.name}</span>
-                          {isTakenInTarget && <span className="text-[9px] text-amber-500">🔒</span>}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm shrink-0">{c.emoji}</span>
+                            <span className="truncate">{c.name}</span>
+                          </div>
+                          {isTakenInTarget && (
+                            <span className="text-[8px] px-1 py-0.5 rounded bg-rose-500/25 text-rose-300 border border-rose-500/40 shrink-0 font-medium">
+                              🔒 {ownerName}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -516,16 +583,8 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
                     {CAMPUS_CHARACTERS.filter((c) => c.gender === gender && c.zone === pickerZone).map((c) => {
                       const isSelected = c.id === characterId;
-                      let isTakenInTarget = false;
-                      try {
-                        const saved = localStorage.getItem(`seu_adda_room_${roomIdInput.trim().toUpperCase()}`);
-                        if (saved) {
-                          const parsed = JSON.parse(saved);
-                          if (parsed && Array.isArray(parsed.participants)) {
-                            isTakenInTarget = parsed.participants.some((p: any) => p.characterId === c.id && p.id !== currentUser.id);
-                          }
-                        }
-                      } catch (_) {}
+                      const ownerName = takenCharactersMap[c.id];
+                      const isTakenInTarget = Boolean(ownerName);
 
                       return (
                         <button
@@ -533,18 +592,24 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
                           type="button"
                           disabled={isTakenInTarget}
                           onClick={() => !isTakenInTarget && setCharacterId(c.id)}
-                          className={`flex items-center gap-1.5 p-1.5 rounded-xl text-left border transition text-xs ${
+                          className={`flex items-center justify-between gap-1 p-1.5 rounded-xl text-left border transition text-xs ${
                             isSelected
                               ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold shadow-sm'
                               : isTakenInTarget
-                              ? 'bg-slate-950/80 border-red-950/40 text-slate-500 opacity-40 cursor-not-allowed'
+                              ? 'bg-slate-950/90 border-rose-900/50 text-slate-500 opacity-50 cursor-not-allowed'
                               : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
-                          title={isTakenInTarget ? 'এই ক্যারেক্টারটি ইতিমধ্যে রুমে একজন নিয়েছেন' : c.name}
+                          title={isTakenInTarget ? `এই ক্যারেক্টারটি ইতিমধ্যে ${ownerName} দখল করে রেখেছেন!` : c.name}
                         >
-                          <span className="text-sm shrink-0">{c.emoji}</span>
-                          <span className="truncate">{c.name}</span>
-                          {isTakenInTarget && <span className="text-[9px] text-amber-500">🔒</span>}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm shrink-0">{c.emoji}</span>
+                            <span className="truncate">{c.name}</span>
+                          </div>
+                          {isTakenInTarget && (
+                            <span className="text-[8px] px-1 py-0.5 rounded bg-rose-500/25 text-rose-300 border border-rose-500/40 shrink-0 font-medium">
+                              🔒 {ownerName}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
