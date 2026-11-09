@@ -19,6 +19,7 @@ export function App() {
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [isConfessionOpen, setIsConfessionOpen] = useState(false);
   const [isPhotoCardOpen, setIsPhotoCardOpen] = useState(false);
+  const [activeQuote, setActiveQuote] = useState<{ speaker: string; text: string } | undefined>(undefined);
   const [hasAutoSynced, setHasAutoSynced] = useState(false);
 
   // Audio & Player Hooks
@@ -121,6 +122,7 @@ export function App() {
           onTogglePlay={togglePlay}
           onGuitarStrum={playGuitarStrum}
           onTeaClink={playTeaClink}
+          onActiveQuoteChange={setActiveQuote}
         />
 
         {/* Floating Top Header Navigation with Integrated Mood Selector & Live Dhaka Weather */}
@@ -185,6 +187,7 @@ export function App() {
         currentSongTitle={playerState.currentTitle}
         currentAuthor={playerState.currentAuthor}
         dhakaTime={dhakaTime}
+        activeQuote={activeQuote}
       />
     </div>
   );

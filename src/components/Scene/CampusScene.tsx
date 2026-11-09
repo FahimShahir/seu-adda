@@ -14,6 +14,7 @@ interface CampusSceneProps {
   onTogglePlay: () => void;
   onGuitarStrum: () => void;
   onTeaClink: () => void;
+  onActiveQuoteChange?: (quote: { speaker: string; text: string }) => void;
 }
 
 export const CampusScene: React.FC<CampusSceneProps> = ({
@@ -24,7 +25,8 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   onToggleNight,
   onTogglePlay,
   onGuitarStrum,
-  onTeaClink
+  onTeaClink,
+  onActiveQuoteChange
 }) => {
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [conversation, setConversation] = useState<DialogueLine[]>([]);
@@ -45,8 +47,16 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
       : hotspot.dialogues.general;
 
     const randomIndex = Math.floor(Math.random() * moodDialogues.length);
-    setConversation(moodDialogues[randomIndex]);
+    const chosenConvo = moodDialogues[randomIndex];
+    setConversation(chosenConvo);
     setActiveHotspot(hotspot);
+
+    if (chosenConvo && chosenConvo.length > 0 && onActiveQuoteChange) {
+      onActiveQuoteChange({
+        speaker: chosenConvo[0].speaker,
+        text: chosenConvo[0].text
+      });
+    }
 
     if (hotspot.actionType === 'music') {
       onGuitarStrum();
