@@ -18,6 +18,52 @@ export interface PlayerState {
   statusText: string;
 }
 
+export interface ParsedYouTubeSource {
+  type: 'playlist' | 'video';
+  id: string;
+}
+
+export function parseYouTubeSource(input: string): ParsedYouTubeSource | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // 1. Check for playlist URL or parameter: list=([a-zA-Z0-9_-]+)
+  const playlistMatch = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  if (playlistMatch) {
+    return { type: 'playlist', id: playlistMatch[1] };
+  }
+
+  // 2. Check for short URL: youtu.be/([a-zA-Z0-9_-]{11})
+  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) {
+    return { type: 'video', id: shortMatch[1] };
+  }
+
+  // 3. Check for standard video watch URL: v=([a-zA-Z0-9_-]{11})
+  const videoMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (videoMatch) {
+    return { type: 'video', id: videoMatch[1] };
+  }
+
+  // 4. Check for embed URL: youtube.com/embed/([a-zA-Z0-9_-]{11})
+  const embedMatch = trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (embedMatch) {
+    return { type: 'video', id: embedMatch[1] };
+  }
+
+  // 5. If exactly 11 chars alphanumeric, treat as direct video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return { type: 'video', id: trimmed };
+  }
+
+  // 6. If longer (like PL...), treat as playlist ID
+  if (/^[a-zA-Z0-9_-]{12,}$/.test(trimmed)) {
+    return { type: 'playlist', id: trimmed };
+  }
+
+  return null;
+}
+
 export function useYouTubePlayer(initialPlaylistId: string) {
   const [playlistId, setPlaylistId] = useState(initialPlaylistId);
   const [playerState, setPlayerState] = useState<PlayerState>({
@@ -283,6 +329,38 @@ export function useYouTubePlayer(initialPlaylistId: string) {
     }
   }, []);
 
+  const playCustomSource = useCallback((input: string): boolean => {
+    const parsed = parseYouTubeSource(input);
+    if (!parsed) return false;
+
+    isPlayingRef.current = true;
+    pendingPlayRef.current = true;
+
+    if (parsed.type === 'playlist') {
+      setPlaylistId(parsed.id);
+      if (playerRef.current && typeof playerRef.current.loadPlaylist === 'function') {
+        try {
+          playerRef.current.loadPlaylist({
+            listType: 'playlist',
+            list: parsed.id
+          });
+          playerRef.current.unMute();
+          playerRef.current.playVideo();
+        } catch (e) {}
+      }
+    } else {
+      // Single Video ID
+      if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
+        try {
+          playerRef.current.loadVideoById(parsed.id);
+          playerRef.current.unMute();
+          playerRef.current.playVideo();
+        } catch (e) {}
+      }
+    }
+    return true;
+  }, []);
+
   return {
     containerRef,
     playerState,
@@ -293,6 +371,7 @@ export function useYouTubePlayer(initialPlaylistId: string) {
     prevTrack,
     setVolume,
     changePlaylist,
+    playCustomSource,
     playlistId
   };
 }

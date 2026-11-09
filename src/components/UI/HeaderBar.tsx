@@ -1,16 +1,20 @@
 import React, { useRef } from 'react';
-import { MessageSquareHeart, CloudRain, Sun, Moon, Coffee, Sparkles, HeartCrack, BookOpen } from 'lucide-react';
+import { MessageSquareHeart, CloudRain, Sun, Moon, Coffee, Sparkles, HeartCrack, BookOpen, Camera } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
+import { DhakaWeather } from '../../hooks/useDhakaClockAndWeather';
 
 interface HeaderBarProps {
   onlineCount: number;
   isNight: boolean;
   isRain: boolean;
   currentMood: AddaMood;
+  dhakaTime: string;
+  weather: DhakaWeather | null;
   onSelectMood: (mood: AddaMood) => void;
   onToggleNight: () => void;
   onToggleRain: () => void;
   onOpenConfessions: () => void;
+  onOpenPhotoCard: () => void;
   onCheers: () => void;
 }
 
@@ -19,10 +23,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   isNight,
   isRain,
   currentMood,
+  dhakaTime,
+  weather,
   onSelectMood,
   onToggleNight,
   onToggleRain,
   onOpenConfessions,
+  onOpenPhotoCard,
   onCheers
 }) => {
   const moodScrollRef = useRef<HTMLDivElement>(null);
@@ -88,11 +95,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 সাউথইস্ট বিশ্ববিদ্যালয়
               </span>
             </h1>
-            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
-              <span>
-                <strong className="text-emerald-400">{onlineCount}</strong> জন আড্ডায়
+            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-slate-400">
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span><strong className="text-emerald-400">{onlineCount}</strong> জন</span>
               </span>
+              {dhakaTime && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-slate-900/90 text-amber-300/90 border border-white/10 font-medium shrink-0">
+                  <span>🕒 {dhakaTime}</span>
+                  {weather && <span>• {weather.icon} {weather.temperature}°C</span>}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -127,6 +140,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         {/* Right: Quick Action Controls */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Polaroid Campus Photo Card Generator */}
+          <button
+            onClick={onOpenPhotoCard}
+            className="flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs px-2 sm:px-2.5 py-1.5 rounded-full border border-amber-500/40 transition active:scale-95 shadow-md shadow-amber-500/10"
+            title="ক্যাম্পাস ফটো কার্ড তৈরি ও ডাউনলোড করুন"
+          >
+            <Camera size={12} />
+            <span className="hidden sm:inline text-[11px] font-semibold">ফটো কার্ড</span>
+          </button>
+
           {/* Confessions Board */}
           <button
             onClick={onOpenConfessions}

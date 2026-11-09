@@ -6,6 +6,7 @@ interface PlaylistModalProps {
   isOpen: boolean;
   activePlaylistId: string;
   onSelectPlaylist: (id: string) => void;
+  onPlayCustomSource: (input: string) => boolean;
   onClose: () => void;
 }
 
@@ -13,9 +14,11 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
   isOpen,
   activePlaylistId,
   onSelectPlaylist,
+  onPlayCustomSource,
   onClose
 }) => {
   const [customInput, setCustomInput] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
@@ -23,13 +26,13 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
     e.preventDefault();
     if (!customInput.trim()) return;
 
-    // Check if input is full URL or ID
-    const match = customInput.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-    const playlistId = match ? match[1] : customInput.trim();
-    
-    if (playlistId) {
-      onSelectPlaylist(playlistId);
+    const success = onPlayCustomSource(customInput.trim());
+    if (success) {
+      setErrorMsg('');
+      setCustomInput('');
       onClose();
+    } else {
+      setErrorMsg('অনুগ্রহ করে সঠিক YouTube গান বা প্লেলিস্ট লিংক দিন (যেমন: youtu.be/... অথবা youtube.com/watch?v=...)');
     }
   };
 
@@ -84,26 +87,35 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
           })}
         </div>
 
-        {/* Custom Playlist Input */}
+        {/* Custom YouTube Video / Playlist URL Input */}
         <form onSubmit={handleCustomSubmit} className="border-t border-slate-800 pt-4">
-          <label className="block text-xs font-medium text-slate-300 mb-2">
-            অথবা নিজস্ব YouTube প্লেলিস্ট লিংক / আইডি দিন:
+          <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+            <span>🔗 পছন্দের যেকোনো YouTube গান বা প্লেলিস্ট লিংক দিন:</span>
+            <span className="text-[10px] text-amber-400/80">ভিডিও বা প্লেলিস্ট URL</span>
           </label>
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="https://www.youtube.com/playlist?list=..."
+              placeholder="https://youtu.be/... অথবা youtube.com/watch?v=..."
               value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              onChange={(e) => {
+                setCustomInput(e.target.value);
+                if (errorMsg) setErrorMsg('');
+              }}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
             />
             <button
               type="submit"
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2 rounded-xl text-xs transition"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow-md shadow-amber-500/20"
             >
-              প্লে করুন
+              প্লে করুন 🎶
             </button>
           </div>
+          {errorMsg && (
+            <p className="text-[11px] text-rose-400 mt-2 bg-rose-500/10 border border-rose-500/20 rounded-lg p-1.5">
+              ⚠️ {errorMsg}
+            </p>
+          )}
         </form>
       </div>
     </div>

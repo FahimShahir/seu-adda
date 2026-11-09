@@ -76,14 +76,32 @@ export const ConfessionModal: React.FC<ConfessionModalProps> = ({
             onChange={(e) => setText(e.target.value)}
             className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none mb-2"
           />
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-[10px] text-slate-400">ডিপার্টমেন্ট:</span>
+              {['CSE', 'BBA', 'EEE', 'English', 'Pharmacy', 'Law'].map((d) => (
+                <button
+                  type="button"
+                  key={d}
+                  onClick={() => setDept(d)}
+                  className={`text-[9px] px-2 py-0.5 rounded-full border transition ${
+                    dept.includes(d)
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+
             <button
               type="submit"
               disabled={!text.trim() || isSubmitting}
-              className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-semibold px-4 py-1.5 rounded-xl text-xs transition"
+              className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold px-4 py-1.5 rounded-xl text-xs transition active:scale-95 shadow-md shadow-amber-500/20"
             >
               <Send size={13} />
-              <span>জমা দিন</span>
+              <span>জমা দিন 🚀</span>
             </button>
           </div>
         </form>

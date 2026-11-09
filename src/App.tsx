@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { useAmbientAudio } from './hooks/useAmbientAudio';
 import { usePresenceAndConfessions } from './hooks/usePresenceAndConfessions';
+import { useDhakaClockAndWeather } from './hooks/useDhakaClockAndWeather';
 import { HeaderBar } from './components/UI/HeaderBar';
 import { CampusScene } from './components/Scene/CampusScene';
 import { PlayerControls } from './components/Audio/PlayerControls';
 import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
+import { PhotoCardModal } from './components/Community/PhotoCardModal';
 import { AddaMood } from './data/dialogues';
 
 export function App() {
@@ -16,6 +18,8 @@ export function App() {
   const [currentMood, setCurrentMood] = useState<AddaMood>('general');
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [isConfessionOpen, setIsConfessionOpen] = useState(false);
+  const [isPhotoCardOpen, setIsPhotoCardOpen] = useState(false);
+  const [hasAutoSynced, setHasAutoSynced] = useState(false);
 
   // Audio & Player Hooks
   const {
@@ -27,6 +31,7 @@ export function App() {
     prevTrack,
     setVolume,
     changePlaylist,
+    playCustomSource,
     playlistId
   } = useYouTubePlayer('PLOPZkRWRrUEk');
 
@@ -43,6 +48,23 @@ export function App() {
     addConfession,
     likeConfession
   } = usePresenceAndConfessions();
+
+  // Dhaka Live Clock & Weather Auto-Sync
+  const { dhakaTime, weather } = useDhakaClockAndWeather();
+
+  useEffect(() => {
+    if (weather && !hasAutoSynced) {
+      setHasAutoSynced(true);
+      if (!weather.isDay) {
+        setIsNight(true);
+        setNightAudio(true);
+      }
+      if (weather.isRaining) {
+        setIsRain(true);
+        setRainAudio(true);
+      }
+    }
+  }, [weather, hasAutoSynced, setNightAudio, setRainAudio]);
 
   // Synchronize rain state with ambient rain sound
   const handleToggleRain = () => {
@@ -101,16 +123,19 @@ export function App() {
           onTeaClink={playTeaClink}
         />
 
-        {/* Floating Top Header Navigation with Integrated Mood Selector */}
+        {/* Floating Top Header Navigation with Integrated Mood Selector & Live Dhaka Weather */}
         <HeaderBar
           onlineCount={onlineCount}
           isNight={isNight}
           isRain={isRain}
           currentMood={currentMood}
+          dhakaTime={dhakaTime}
+          weather={weather}
           onSelectMood={setCurrentMood}
           onToggleNight={handleToggleNight}
           onToggleRain={handleToggleRain}
           onOpenConfessions={() => setIsConfessionOpen(true)}
+          onOpenPhotoCard={() => setIsPhotoCardOpen(true)}
           onCheers={handleCheers}
         />
 
@@ -129,7 +154,7 @@ export function App() {
         />
       </main>
 
-      {/* Playlist Selector Modal */}
+      {/* Playlist Selector & Custom Song Modal */}
       <PlaylistModal
         isOpen={isPlaylistOpen}
         activePlaylistId={playlistId}
@@ -137,6 +162,7 @@ export function App() {
           changePlaylist(id);
           play();
         }}
+        onPlayCustomSource={playCustomSource}
         onClose={() => setIsPlaylistOpen(false)}
       />
 
@@ -147,6 +173,18 @@ export function App() {
         onAddConfession={addConfession}
         onLikeConfession={likeConfession}
         onClose={() => setIsConfessionOpen(false)}
+      />
+
+      {/* Polaroid / Instagram Story Photo Card Modal */}
+      <PhotoCardModal
+        isOpen={isPhotoCardOpen}
+        onClose={() => setIsPhotoCardOpen(false)}
+        isNight={isNight}
+        isRain={isRain}
+        currentMood={currentMood}
+        currentSongTitle={playerState.currentTitle}
+        currentAuthor={playerState.currentAuthor}
+        dhakaTime={dhakaTime}
       />
     </div>
   );

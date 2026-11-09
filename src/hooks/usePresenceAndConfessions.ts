@@ -90,6 +90,37 @@ export function usePresenceAndConfessions() {
     return () => clearInterval(interval);
   }, []);
 
+  // Realtime multi-tab synchronization via BroadcastChannel
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        channel = new BroadcastChannel('seu_adda_confessions_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'CONFESSIONS_UPDATE' && Array.isArray(event.data.payload)) {
+            setConfessions(event.data.payload);
+          }
+        };
+      }
+    } catch (e) {}
+
+    return () => {
+      try {
+        channel?.close();
+      } catch (_) {}
+    };
+  }, []);
+
+  const broadcastUpdate = (updatedList: Confession[]) => {
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('seu_adda_confessions_sync');
+        channel.postMessage({ type: 'CONFESSIONS_UPDATE', payload: updatedList });
+        channel.close();
+      }
+    } catch (e) {}
+  };
+
   const addConfession = useCallback((author: string, dept: string, text: string) => {
     const newConfession: Confession = {
       id: Date.now().toString(),
@@ -105,6 +136,7 @@ export function usePresenceAndConfessions() {
       try {
         localStorage.setItem('seu_confessions', JSON.stringify(updated));
       } catch (e) {}
+      broadcastUpdate(updated);
       return updated;
     });
   }, []);
@@ -115,6 +147,7 @@ export function usePresenceAndConfessions() {
       try {
         localStorage.setItem('seu_confessions', JSON.stringify(updated));
       } catch (e) {}
+      broadcastUpdate(updated);
       return updated;
     });
   }, []);
