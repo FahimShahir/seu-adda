@@ -14,17 +14,22 @@ import {
   CheckSquare,
   Square,
   Plus,
-  Trash2
+  Trash2,
+  ChevronDown,
+  Sun,
+  Moon,
+  CloudRain,
+  MapPin
 } from 'lucide-react';
 import { AddaMood } from '../../data/dialogues';
-import { ChatMessage, RoomParticipant, CAMPUS_CHARACTERS } from '../../types/room';
+import { ChatMessage, RoomParticipant, CAMPUS_CHARACTERS, CampusCharacter, CampusZone } from '../../types/room';
 
 export interface GroupCardDialogue {
   id: string;
-  speaker: string;
-  dept?: string;
-  emoji?: string;
-  text: string;
+  speaker: string;          // User-customizable speaker name (e.g. "মাহিন", "তানভীর")
+  dept?: string;            // User-customizable department (e.g. "CSE", "BBA")
+  characterId: string;      // ID of character from CAMPUS_CHARACTERS
+  text: string;             // Dialogue quote text
 }
 
 interface PhotoCardModalProps {
@@ -88,28 +93,38 @@ const PRESET_TEMPLATES: PresetTemplate[] = [
   }
 ];
 
+// Default group dialogues placed across different distinct characters
 const DEFAULT_GROUP_DIALOGUES: GroupCardDialogue[] = [
   {
     id: 'g1',
     speaker: 'তানভীর',
     dept: 'Textile',
-    emoji: '🎸',
+    characterId: 'guitarist',
     text: 'সবাই একসাথে ধরবি— "যদি তোর ডাক শুনে কেউ না আসে তবে একলা চল রে!"'
   },
   {
     id: 'g2',
-    speaker: 'নিশাত',
-    dept: 'Pharmacy',
-    emoji: '🥻',
-    text: 'মামা গান থামাইস না! আগে ক্যান্টিন থেকে গরম লাল চা নিয়ে আয়!'
+    speaker: 'মেহজাবিন',
+    dept: 'BBA',
+    characterId: 'mid_stairs_girl_1',
+    text: 'জেরিন দেখ, আমরা দুজন এখন সিঁড়িতে বসে আড্ডা দিচ্ছি! 💜✨'
   },
   {
     id: 'g3',
-    speaker: 'শাকিল',
+    speaker: 'সাজিদ',
     dept: 'CSE',
-    emoji: '☕',
-    text: 'এক কাপ চা পাঁচজনে শেয়ার করার নামই তো সাউথইস্ট ক্যাম্পাস আড্ডা!'
+    characterId: 'standing_boy_1',
+    text: 'দোস্ত, পরীক্ষার কি অবস্থা? গিটার বাজানো থামাইয়া একটু পড়ি চল!'
   }
+];
+
+// Color themes for speech bubbles
+const BUBBLE_THEMES = [
+  { border: 'rgba(245, 158, 11, 0.95)', header: '#FBBF24', pulse: '#F59E0B' }, // Amber
+  { border: 'rgba(52, 211, 153, 0.95)', header: '#34D399', pulse: '#10B981' }, // Emerald
+  { border: 'rgba(56, 189, 248, 0.95)', header: '#38BDF8', pulse: '#0EA5E9' }, // Sky
+  { border: 'rgba(244, 114, 182, 0.95)', header: '#F472B6', pulse: '#EC4899' }, // Pink
+  { border: 'rgba(167, 139, 250, 0.95)', header: '#A78BFA', pulse: '#8B5CF6' }  // Purple
 ];
 
 export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
@@ -127,19 +142,26 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
   roomParticipants = []
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cachedImgRef = useRef<HTMLImageElement | null>(null);
+  const dayImgRef = useRef<HTMLImageElement | null>(null);
+  const nightImgRef = useRef<HTMLImageElement | null>(null);
 
-  // Card Mode: 'single' (একক ডায়লগ) | 'group' (গ্রুপ আড্ডা)
-  const [cardMode, setCardMode] = useState<'single' | 'group'>('single');
+  // Card Mode: 'single' (একক ডায়লগ কার্ড) | 'group' (ক্যাম্পাস সিন গ্রুপ আড্ডা কার্ড)
+  const [cardMode, setCardMode] = useState<'single' | 'group'>('group');
+
+  // Scene customization for the card
+  const [cardNight, setCardNight] = useState<boolean>(isNight);
+  const [cardRain, setCardRain] = useState<boolean>(isRain);
 
   // Single Mode State
   const [customSpeaker, setCustomSpeaker] = useState<string>('');
   const [customText, setCustomText] = useState<string>('');
   const [selectedPresetIndex, setSelectedPresetIndex] = useState<number | null>(null);
 
-  // Group Mode State
+  // Group Mode State (Scene speech bubbles over characters)
   const [groupName, setGroupName] = useState<string>('সাউথইস্ট ক্যাম্পাস আড্ডা');
   const [groupDialogues, setGroupDialogues] = useState<GroupCardDialogue[]>(DEFAULT_GROUP_DIALOGUES);
+  const [activePickerDlgId, setActivePickerDlgId] = useState<string | null>(null);
+  const [characterFilterZone, setCharacterFilterZone] = useState<CampusZone | 'all'>('all');
 
   // Export State
   const [downloadUrl, setDownloadUrl] = useState<string>('');
@@ -153,16 +175,20 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
     canteen: 'ক্যান্টিন ও ট্যুর ☕'
   };
 
-  // Helper to extract character emoji
-  const getCharEmoji = (characterId?: string): string => {
-    if (!characterId) return '💬';
-    const char = CAMPUS_CHARACTERS.find((c) => c.id === characterId);
-    return char ? char.emoji : '💬';
+  // Helper to extract character object
+  const getCharObj = (characterId?: string): CampusCharacter => {
+    return (
+      CAMPUS_CHARACTERS.find((c) => c.id === characterId) ||
+      CAMPUS_CHARACTERS[0]
+    );
   };
 
   // Initialize or reset text when modal opens
   useEffect(() => {
     if (isOpen) {
+      setCardNight(isNight);
+      setCardRain(isRain);
+
       const initialSpeaker = activeQuote?.speaker || 'ক্যাম্পাস আড্ডাবাজ';
       const initialText =
         activeQuote?.text ||
@@ -181,8 +207,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         const initialGroup: GroupCardDialogue[] = nonSystemMsgs.slice(-3).map((m) => ({
           id: m.id,
           speaker: m.senderName,
-          dept: m.senderDept,
-          emoji: getCharEmoji(m.characterId),
+          dept: m.senderDept || 'CSE',
+          characterId: m.characterId || 'guitarist',
           text: m.text
         }));
         setGroupDialogues(initialGroup);
@@ -190,115 +216,142 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         setGroupDialogues(DEFAULT_GROUP_DIALOGUES);
       }
     }
-  }, [isOpen, activeQuote, roomTitle, roomMessages]);
+  }, [isOpen, activeQuote, roomTitle, roomMessages, isNight, isRain]);
 
-  // Preload & Cache Background Image
+  // Preload & Cache Both Day & Night Background Images
   useEffect(() => {
     if (!isOpen) return;
 
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = isNight ? './images/campus-night.jpg' : './images/campus-day.jpg';
+    let dayLoaded = false;
+    let nightLoaded = false;
 
-    img.onload = () => {
-      cachedImgRef.current = img;
-      renderCanvas();
+    const imgDay = new Image();
+    imgDay.crossOrigin = 'anonymous';
+    imgDay.src = './images/campus-day.jpg';
+    imgDay.onload = () => {
+      dayImgRef.current = imgDay;
+      dayLoaded = true;
+      if (dayLoaded && nightLoaded) renderCanvas();
     };
-  }, [isOpen, isNight]);
 
-  // Main Canvas Render Function (Supports Both Single & Group Photo Cards)
+    const imgNight = new Image();
+    imgNight.crossOrigin = 'anonymous';
+    imgNight.src = './images/campus-night.jpg';
+    imgNight.onload = () => {
+      nightImgRef.current = imgNight;
+      nightLoaded = true;
+      if (dayLoaded && nightLoaded) renderCanvas();
+    };
+
+    // Render immediately if already cached
+    renderCanvas();
+  }, [isOpen]);
+
+  // Main Canvas Render Function
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // High resolution card dimensions (800 x 1000)
-    canvas.width = 800;
-    canvas.height = 1000;
+    // High resolution card dimensions (1000 x 1500, exact 2:3 native portrait ratio)
+    canvas.width = 1000;
+    canvas.height = 1500;
 
-    const img = cachedImgRef.current;
+    const bgImg = cardNight ? nightImgRef.current : dayImgRef.current;
 
-    // 1. Draw Campus Background Artwork
-    if (img && img.complete) {
-      ctx.drawImage(img, 0, 0, 800, 1000);
+    // 1. Draw Full Campus Background Artwork
+    if (bgImg && bgImg.complete) {
+      ctx.drawImage(bgImg, 0, 0, 1000, 1500);
     } else {
-      ctx.fillStyle = isNight ? '#090d16' : '#1e293b';
-      ctx.fillRect(0, 0, 800, 1000);
+      ctx.fillStyle = cardNight ? '#090d16' : '#1e293b';
+      ctx.fillRect(0, 0, 1000, 1500);
     }
 
-    // 2. Cinematic Gradient Overlay
-    const grad = ctx.createLinearGradient(0, 0, 0, 1000);
-    grad.addColorStop(0, 'rgba(15, 23, 42, 0.90)');
-    grad.addColorStop(0.22, 'rgba(15, 23, 42, 0.40)');
-    grad.addColorStop(0.62, 'rgba(15, 23, 42, 0.80)');
-    grad.addColorStop(1, 'rgba(2, 6, 23, 0.98)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 800, 1000);
-
     // Rain particles if raining
-    if (isRain) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-      ctx.lineWidth = 1.5;
-      for (let i = 0; i < 90; i++) {
-        const rx = Math.random() * 800;
-        const ry = Math.random() * 1000;
+    if (cardRain) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 1.6;
+      for (let i = 0; i < 110; i++) {
+        const rx = Math.random() * 1000;
+        const ry = Math.random() * 1500;
         ctx.beginPath();
         ctx.moveTo(rx, ry);
-        ctx.lineTo(rx - 8, ry + 22);
+        ctx.lineTo(rx - 9, ry + 24);
         ctx.stroke();
       }
     }
 
+    // 2. Subtle Top Header Gradient (Keeps characters and scene 100% visible)
+    const topGrad = ctx.createLinearGradient(0, 0, 0, 190);
+    topGrad.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
+    topGrad.addColorStop(0.65, 'rgba(2, 6, 23, 0.65)');
+    topGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(0, 0, 1000, 190);
+
+    // 3. Subtle Bottom Footer Gradient (For music player & watermark)
+    const botGrad = ctx.createLinearGradient(0, 1340, 0, 1500);
+    botGrad.addColorStop(0, 'rgba(2, 6, 23, 0)');
+    botGrad.addColorStop(0.35, 'rgba(2, 6, 23, 0.70)');
+    botGrad.addColorStop(1, 'rgba(2, 6, 23, 0.96)');
+    ctx.fillStyle = botGrad;
+    ctx.fillRect(0, 1340, 0, 160);
+
     // Outer Card Gold Accent Border
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.55)';
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.65)';
     ctx.lineWidth = 8;
-    ctx.strokeRect(20, 20, 760, 960);
+    ctx.strokeRect(16, 16, 968, 1468);
 
     // Inner subtle thin border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(28, 28, 744, 944);
+    ctx.strokeRect(26, 26, 948, 1448);
 
-    // 3. Header: Brand Logo & Title
+    // 4. Header: Brand Logo & Title
     ctx.fillStyle = '#F59E0B';
-    ctx.font = 'bold 34px "Hind Siliguri", sans-serif';
+    ctx.font = 'bold 36px "Hind Siliguri", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('☕ SEU Adda', 50, 75);
+    ctx.fillText('☕ SEU Adda', 50, 68);
 
     ctx.fillStyle = '#CBD5E1';
     ctx.font = '20px "Hind Siliguri", sans-serif';
-    ctx.fillText('সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা', 50, 106);
+    ctx.fillText('সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা', 50, 98);
 
     // Live Dhaka Time & Mood Pill
     ctx.textAlign = 'right';
     ctx.fillStyle = '#FEF3C7';
     ctx.font = 'bold 22px "Hind Siliguri", sans-serif';
-    ctx.fillText(`🕒 ${dhakaTime || 'ক্যাম্পাস সময়'} • ঢাকা`, 750, 75);
+    ctx.fillText(`🕒 ${dhakaTime || 'ক্যাম্পাস সময়'} • ঢাকা`, 950, 68);
 
     ctx.fillStyle = '#F59E0B';
     ctx.font = '18px "Hind Siliguri", sans-serif';
-    ctx.fillText(moodLabels[currentMood] || 'ক্যাম্পাস আড্ডা', 750, 106);
+    ctx.fillText(moodLabels[currentMood] || 'ক্যাম্পাস আড্ডা', 950, 98);
 
-    const wrapText = (text: string, x: number, y: number, maxWidth: number, lHeight: number) => {
+    // Helper to wrap text nicely inside a constrained width
+    const getWrappedLines = (text: string, maxWidth: number, font: string): string[] => {
+      ctx.font = font;
       const words = text.split(' ');
-      let line = '';
-      let curY = y;
+      const lines: string[] = [];
+      let currentLine = '';
+
       for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
+        const testLine = currentLine ? `${currentLine} ${words[n]}` : words[n];
         const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && n > 0) {
-          ctx.fillText(line, x, curY);
-          line = words[n] + ' ';
-          curY += lHeight;
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = words[n];
         } else {
-          line = testLine;
+          currentLine = testLine;
         }
       }
-      ctx.fillText(line, x, curY);
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      return lines;
     };
 
-    // 4. Centerpiece Render: SINGLE or GROUP MODE
+    // 5. CENTERPIECE RENDER
     if (cardMode === 'single') {
       // ----------------------------------------------------
       // SINGLE QUOTE MODE
@@ -308,174 +361,205 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         customText.trim() ||
         'ক্যাম্পাসের এই আড্ডার প্রতিটি মুহূর্ত, প্রতিটি গান আর প্রতি কাপ চা চিরকাল স্মৃতি হয়ে রবে।';
 
-      const qBoxY = 470;
-      const qBoxH = 275;
+      const qBoxY = 680;
+      const qBoxH = 340;
 
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
-      ctx.lineWidth = 3;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
+      ctx.lineWidth = 3.5;
 
-      const r = 24;
       ctx.beginPath();
-      ctx.moveTo(50 + r, qBoxY);
-      ctx.lineTo(750 - r, qBoxY);
-      ctx.quadraticCurveTo(750, qBoxY, 750, qBoxY + r);
-      ctx.lineTo(750, qBoxY + qBoxH - r);
-      ctx.quadraticCurveTo(750, qBoxY + qBoxH, 750 - r, qBoxY + qBoxH);
-      ctx.lineTo(50 + r, qBoxY + qBoxH);
-      ctx.quadraticCurveTo(50, qBoxY + qBoxH, 50, qBoxY + qBoxH - r);
-      ctx.lineTo(50, qBoxY + r);
-      ctx.quadraticCurveTo(50, qBoxY, 50 + r, qBoxY);
-      ctx.closePath();
+      ctx.roundRect(60, qBoxY, 880, qBoxH, 24);
       ctx.fill();
       ctx.stroke();
 
       // Speaker Name Header Badge
       ctx.textAlign = 'left';
       ctx.fillStyle = '#FBBF24';
-      ctx.font = 'bold 24px "Hind Siliguri", sans-serif';
-      ctx.fillText(`💬 ${speakerText}:`, 80, qBoxY + 50);
+      ctx.font = 'bold 28px "Hind Siliguri", sans-serif';
+      ctx.fillText(`💬 ${speakerText}:`, 100, qBoxY + 60);
 
-      // Speaker decorative underline
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+      // Decorative underline
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.40)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(80, qBoxY + 62);
-      ctx.lineTo(350, qBoxY + 62);
+      ctx.moveTo(100, qBoxY + 75);
+      ctx.lineTo(420, qBoxY + 75);
       ctx.stroke();
 
-      // Adaptive Font Size Based on Text Length
-      const textLength = mainMessage.length;
-      let fontSize = 23;
-      let lineHeight = 36;
-      if (textLength > 120) {
-        fontSize = 19;
-        lineHeight = 30;
-      } else if (textLength > 75) {
-        fontSize = 21;
-        lineHeight = 33;
-      }
-
+      // Message Lines
+      const lines = getWrappedLines(`"${mainMessage}"`, 780, '24px "Hind Siliguri", sans-serif');
       ctx.fillStyle = '#F8FAFC';
-      ctx.font = `${fontSize}px "Hind Siliguri", sans-serif`;
-      wrapText(`"${mainMessage}"`, 80, qBoxY + 105, 640, lineHeight);
+      ctx.font = '24px "Hind Siliguri", sans-serif';
+      lines.slice(0, 5).forEach((line, i) => {
+        ctx.fillText(line, 100, qBoxY + 125 + i * 38);
+      });
 
     } else {
       // ----------------------------------------------------
-      // GROUP PHOTO CARD MODE
+      // SCENE-BASED CHARACTER SPEECH BUBBLE GROUP PHOTO CARD!
       // ----------------------------------------------------
       const finalGroupName = groupName.trim() || 'সাউথইস্ট ক্যাম্পাস আড্ডা';
 
-      // Group Name Top Banner
-      const bY = 135;
-      const bH = 55;
+      // Top Centered Group Banner Capsule
+      const gCapsuleY = 115;
+      const gCapsuleH = 50;
       ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
       ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
       ctx.lineWidth = 2.5;
 
       ctx.beginPath();
-      ctx.roundRect(50, bY, 700, bH, 16);
+      ctx.roundRect(140, gCapsuleY, 720, gCapsuleH, 25);
       ctx.fill();
       ctx.stroke();
 
       ctx.textAlign = 'center';
       ctx.fillStyle = '#FBBF24';
       ctx.font = 'bold 24px "Hind Siliguri", sans-serif';
-      ctx.fillText(`👥 ${finalGroupName.slice(0, 36)}`, 400, bY + 36);
+      ctx.fillText(`👥 ${finalGroupName.slice(0, 36)}`, 500, gCapsuleY + 34);
 
-      // Render Stacked Group Dialogues (2 to 4 dialogues)
-      const dialoguesToDraw = groupDialogues.slice(0, 4);
-      const count = Math.max(1, dialoguesToDraw.length);
-
-      // Total available vertical space from Y: 205 to Y: 755 (550px)
-      let cardHeight = 115;
-      let gap = 16;
-      let startY = 215;
-
-      if (count === 1) {
-        cardHeight = 220;
-        startY = 300;
-      } else if (count === 2) {
-        cardHeight = 150;
-        gap = 22;
-        startY = 240;
-      } else if (count === 3) {
-        cardHeight = 115;
-        gap = 16;
-        startY = 215;
-      } else if (count === 4) {
-        cardHeight = 92;
-        gap = 12;
-        startY = 205;
-      }
-
-      ctx.textAlign = 'left';
+      // Render Speech Bubbles on each character's actual position in the artwork!
+      const dialoguesToDraw = groupDialogues.slice(0, 5);
 
       dialoguesToDraw.forEach((dlg, idx) => {
-        const curY = startY + idx * (cardHeight + gap);
+        const char = getCharObj(dlg.characterId);
+        const theme = BUBBLE_THEMES[idx % BUBBLE_THEMES.length];
 
-        // Dialogue Box
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-        ctx.strokeStyle = idx % 2 === 0 ? 'rgba(245, 158, 11, 0.65)' : 'rgba(52, 211, 153, 0.65)';
-        ctx.lineWidth = 2;
+        // Character pixel position on 1000 x 1500 canvas
+        const charPixelX = (char.x / 100) * 1000;
+        const charPixelY = (char.y / 100) * 1500;
+
+        // Head position
+        const headOffset =
+          char.zone === 'foreground' ? 52 : char.zone === 'midground' ? 38 : 26;
+        const headX = charPixelX;
+        const headY = charPixelY - headOffset;
+
+        // Bubble dimensions
+        const bubbleW = char.zone === 'background' ? 260 : 285;
+        const lines = getWrappedLines(`"${dlg.text}"`, bubbleW - 28, '15px "Hind Siliguri", sans-serif');
+        const bubbleH = 38 + lines.slice(0, 3).length * 22 + 14;
+
+        // Bubble X placement (bounded horizontally)
+        let bubbleX = charPixelX - bubbleW / 2;
+        if (bubbleX < 25) bubbleX = 25;
+        if (bubbleX + bubbleW > 975) bubbleX = 975 - bubbleW;
+
+        // Bubble Y placement (above the head)
+        let bubbleY = headY - bubbleH - 18;
+        if (bubbleY < 180) {
+          bubbleY = 180;
+        }
+
+        // Pointer triangle target
+        const pointerTipX = headX;
+        const pointerTipY = headY;
+        const pointerBaseX = Math.max(bubbleX + 26, Math.min(bubbleX + bubbleW - 26, headX));
+        const pointerBaseY = bubbleY + bubbleH;
+
+        // Shadow for bubble
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+
+        // Draw Pointer Triangle
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+        ctx.strokeStyle = theme.border;
+        ctx.lineWidth = 2.5;
 
         ctx.beginPath();
-        ctx.roundRect(50, curY, 700, cardHeight, 16);
+        ctx.moveTo(pointerBaseX - 10, pointerBaseY);
+        ctx.lineTo(pointerTipX, pointerTipY);
+        ctx.lineTo(pointerBaseX + 10, pointerBaseY);
+        ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // Speaker Header (Emoji + Name + Dept)
-        ctx.fillStyle = idx % 2 === 0 ? '#FBBF24' : '#34D399';
-        ctx.font = 'bold 19px "Hind Siliguri", sans-serif';
-        const speakerHeader = `${dlg.emoji || '💬'} ${dlg.speaker}${dlg.dept ? ` [${dlg.dept}]` : ''}:`;
-        ctx.fillText(speakerHeader, 72, curY + 28);
+        // Draw Speech Bubble Container
+        ctx.beginPath();
+        ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 16);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
 
-        // Dialogue Quote Text
+        // Draw Glowing Halo Dot on Character Head
+        ctx.beginPath();
+        ctx.arc(pointerTipX, pointerTipY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = theme.pulse;
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.stroke();
+
+        // Inside Bubble Header: Emoji + Speaker Name + Dept
+        ctx.textAlign = 'left';
+        ctx.fillStyle = theme.header;
+        ctx.font = 'bold 16px "Hind Siliguri", sans-serif';
+        const speakerDisplayName = `${char.emoji} ${dlg.speaker}`;
+        ctx.fillText(speakerDisplayName.slice(0, 20), bubbleX + 14, bubbleY + 24);
+
+        if (dlg.dept) {
+          ctx.fillStyle = '#94A3B8';
+          ctx.font = '12px "Hind Siliguri", sans-serif';
+          ctx.fillText(`[${dlg.dept}]`, bubbleX + bubbleW - 60, bubbleY + 23);
+        }
+
+        // Header separator line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bubbleX + 14, bubbleY + 32);
+        ctx.lineTo(bubbleX + bubbleW - 14, bubbleY + 32);
+        ctx.stroke();
+
+        // Body Text lines
         ctx.fillStyle = '#F8FAFC';
-        ctx.font = count === 4 ? '15px "Hind Siliguri", sans-serif' : '17px "Hind Siliguri", sans-serif';
-        const textY = curY + 54;
-        wrapText(`"${dlg.text}"`, 72, textY, 650, count === 4 ? 22 : 26);
+        ctx.font = '15px "Hind Siliguri", sans-serif';
+        lines.slice(0, 3).forEach((line, lIdx) => {
+          ctx.fillText(line, bubbleX + 14, bubbleY + 54 + lIdx * 22);
+        });
       });
     }
 
-    // 5. Bottom: Music Player Track Badge
-    const mBoxY = 770;
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.92)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-    ctx.lineWidth = 1.5;
+    // 6. Bottom: Music Player Track Badge
+    const mBoxY = 1365;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.65)';
+    ctx.lineWidth = 2;
 
     ctx.beginPath();
-    ctx.roundRect(50, mBoxY, 700, 110, 20);
+    ctx.roundRect(60, mBoxY, 880, 75, 18);
     ctx.fill();
     ctx.stroke();
 
     // Equalizer bars representation
     ctx.fillStyle = '#F59E0B';
-    const eqX = 80;
-    const eqY = mBoxY + 70;
-    ctx.fillRect(eqX, eqY - 25, 6, 25);
-    ctx.fillRect(eqX + 10, eqY - 40, 6, 40);
-    ctx.fillRect(eqX + 20, eqY - 30, 6, 30);
-    ctx.fillRect(eqX + 30, eqY - 48, 6, 48);
+    const eqX = 85;
+    const eqY = mBoxY + 50;
+    ctx.fillRect(eqX, eqY - 20, 5, 20);
+    ctx.fillRect(eqX + 8, eqY - 32, 5, 32);
+    ctx.fillRect(eqX + 16, eqY - 24, 5, 24);
+    ctx.fillRect(eqX + 24, eqY - 36, 5, 36);
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#FEF3C7';
-    ctx.font = 'bold 22px "Hind Siliguri", sans-serif';
-    ctx.fillText((currentSongTitle || 'ক্যাম্পাস গান').slice(0, 46), 135, mBoxY + 48);
+    ctx.font = 'bold 20px "Hind Siliguri", sans-serif';
+    ctx.fillText((currentSongTitle || 'ক্যাম্পাস পছন্দের গান').slice(0, 48), 130, mBoxY + 34);
 
     ctx.fillStyle = '#94A3B8';
-    ctx.font = '17px "Hind Siliguri", sans-serif';
+    ctx.font = '15px "Hind Siliguri", sans-serif';
     ctx.fillText(
-      `🎙️ ${(currentAuthor || 'SEU Adda').slice(0, 38)} • SEU Campus Radio`,
-      135,
-      mBoxY + 80
+      `🎙️ ${(currentAuthor || 'SEU Adda').slice(0, 35)} • সাউথইস্ট ক্যাম্পাস রেডিও`,
+      130,
+      mBoxY + 60
     );
 
-    // 6. Watermark Footer
-    ctx.fillStyle = '#64748B';
-    ctx.font = '16px "Hind Siliguri", sans-serif';
+    // 7. Watermark Footer
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '15px "Hind Siliguri", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('📍 Southeast University Campus Ground • seu-adda.github.io', 400, 940);
+    ctx.fillText('📍 Southeast University Campus Ground • seu-adda.github.io', 500, 1475);
 
     // Generate PNG Data URL for download
     try {
@@ -487,8 +571,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
     setIsGenerating(false);
   }, [
     cardMode,
-    isNight,
-    isRain,
+    cardNight,
+    cardRain,
     currentMood,
     currentSongTitle,
     currentAuthor,
@@ -524,6 +608,64 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
     );
   };
 
+  // Group Mode: Update dialogue speaker name
+  const handleUpdateSpeaker = (id: string, newSpeaker: string) => {
+    setGroupDialogues((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, speaker: newSpeaker } : d))
+    );
+  };
+
+  // Group Mode: Update dialogue dept
+  const handleUpdateDept = (id: string, newDept: string) => {
+    setGroupDialogues((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, dept: newDept } : d))
+    );
+  };
+
+  // Group Mode: Update dialogue text
+  const handleUpdateText = (id: string, newText: string) => {
+    setGroupDialogues((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, text: newText } : d))
+    );
+  };
+
+  // Group Mode: Change which character is speaking this dialogue
+  const handleAssignCharacter = (dialogueId: string, charId: string) => {
+    const char = getCharObj(charId);
+    setGroupDialogues((prev) =>
+      prev.map((d) =>
+        d.id === dialogueId
+          ? {
+              ...d,
+              characterId: charId,
+              // If speaker name is untouched default, update to character name
+              speaker: d.speaker === 'ক্যাম্পাস বন্ধু' || !d.speaker ? char.name : d.speaker
+            }
+          : d
+      )
+    );
+    setActivePickerDlgId(null);
+  };
+
+  // Group Mode: Add a new character bubble
+  const handleAddDialogue = () => {
+    if (groupDialogues.length >= 5) return;
+    // Pick an unassigned character if possible
+    const assignedIds = groupDialogues.map((d) => d.characterId);
+    const freeChar =
+      CAMPUS_CHARACTERS.find((c) => !assignedIds.includes(c.id)) ||
+      CAMPUS_CHARACTERS[groupDialogues.length % CAMPUS_CHARACTERS.length];
+
+    const newDlg: GroupCardDialogue = {
+      id: `dlg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      speaker: freeChar.name,
+      dept: 'CSE',
+      characterId: freeChar.id,
+      text: 'সাউথইস্ট ক্যাম্পাসের এই মুহূর্তগুলো চিরকাল মনে রাখার মতো! ☕🎶'
+    };
+    setGroupDialogues((prev) => [...prev, newDlg]);
+  };
+
   // Group Mode: Toggle a room message into selection
   const handleToggleRoomMessage = (msg: ChatMessage) => {
     setGroupDialogues((prev) => {
@@ -532,23 +674,26 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
         if (prev.length <= 1) return prev; // Keep at least 1
         return prev.filter((d) => d.id !== msg.id);
       }
-      if (prev.length >= 4) {
-        // Replace oldest or shift
-        return [...prev.slice(1), {
-          id: msg.id,
-          speaker: msg.senderName,
-          dept: msg.senderDept,
-          emoji: getCharEmoji(msg.characterId),
-          text: msg.text
-        }];
+      if (prev.length >= 5) {
+        // Shift oldest
+        return [
+          ...prev.slice(1),
+          {
+            id: msg.id,
+            speaker: msg.senderName,
+            dept: msg.senderDept || 'CSE',
+            characterId: msg.characterId || 'guitarist',
+            text: msg.text
+          }
+        ];
       }
       return [
         ...prev,
         {
           id: msg.id,
           speaker: msg.senderName,
-          dept: msg.senderDept,
-          emoji: getCharEmoji(msg.characterId),
+          dept: msg.senderDept || 'CSE',
+          characterId: msg.characterId || 'guitarist',
           text: msg.text
         }
       ];
@@ -614,15 +759,20 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
 
   const eligibleRoomMessages = roomMessages.filter((m) => !m.isSystem && m.text.trim());
 
+  const filteredCharacters = CAMPUS_CHARACTERS.filter((c) => {
+    if (characterFilterZone !== 'all' && c.zone !== characterFilterZone) return false;
+    return true;
+  });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-fadeIn select-none">
-      <div className="relative w-full max-w-4xl bg-slate-900 border border-amber-500/40 rounded-3xl p-4 sm:p-6 shadow-2xl text-slate-100 max-h-[94vh] flex flex-col no-scrollbar overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn select-none">
+      <div className="relative w-full max-w-5xl bg-slate-900 border border-amber-500/40 rounded-3xl p-3.5 sm:p-5 shadow-2xl text-slate-100 max-h-[95vh] flex flex-col no-scrollbar overflow-hidden">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-          <div className="flex items-center gap-2 text-amber-400 font-bold text-base sm:text-lg">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2.5">
+          <div className="flex items-center gap-2 text-amber-400 font-bold text-sm sm:text-base">
             <Sparkles size={18} />
-            <span>ক্যাম্পাস ফটো কার্ড ও স্টোরি জেনারেটর 📸</span>
+            <span>ক্যাম্পাস সিন ফটো কার্ড ও স্পিচ বাবল জেনারেটর 📸</span>
           </div>
           <button
             onClick={onClose}
@@ -633,44 +783,72 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Switcher Toggle: Single Quote vs Group Photo Card */}
-        <div className="flex bg-slate-950/80 p-1 rounded-2xl border border-white/5 mb-3.5">
-          <button
-            type="button"
-            onClick={() => setCardMode('single')}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
-              cardMode === 'single'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <User size={14} />
-            <span>👤 একক ডায়লগ কার্ড</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCardMode('group')}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
-              cardMode === 'group'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users size={14} />
-            <span>👥 গ্রুপ আড্ডা কার্ড</span>
-            {eligibleRoomMessages.length > 0 && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/40 text-slate-950 font-black">
-                {eligibleRoomMessages.length}
-              </span>
-            )}
-          </button>
+        {/* Mode Switcher Toggle: Single Quote vs Group Scene Photo Card */}
+        <div className="flex items-center justify-between gap-2 bg-slate-950/80 p-1 rounded-2xl border border-white/5 mb-3">
+          <div className="flex flex-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setCardMode('group')}
+              className={`flex-1 py-1.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
+                cardMode === 'group'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Users size={14} />
+              <span>👥 ক্যাম্পাস সিন গ্রুপ আড্ডা কার্ড</span>
+              {eligibleRoomMessages.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/40 text-slate-950 font-black">
+                  {eligibleRoomMessages.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCardMode('single')}
+              className={`flex-1 py-1.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
+                cardMode === 'single'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <User size={14} />
+              <span>👤 একক ডায়লগ কার্ড</span>
+            </button>
+          </div>
+
+          {/* Quick Day/Night & Rain Toggles for Card */}
+          <div className="flex items-center gap-1 shrink-0 pl-1 border-l border-slate-800">
+            <button
+              type="button"
+              onClick={() => setCardNight(!cardNight)}
+              className={`px-2 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 transition ${
+                cardNight ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              }`}
+              title="কার্ডের দৃশ্য দিন বা রাতে বদলান"
+            >
+              {cardNight ? <Moon size={12} /> : <Sun size={12} />}
+              <span className="hidden sm:inline">{cardNight ? 'রাত' : 'দিন'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCardRain(!cardRain)}
+              className={`px-2 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 transition ${
+                cardRain ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/40' : 'bg-slate-800 text-slate-400'
+              }`}
+              title="বৃষ্টির আবহ অন বা অফ করুন"
+            >
+              <CloudRain size={12} />
+              <span className="hidden sm:inline">বৃষ্টি</span>
+            </button>
+          </div>
         </div>
 
         {/* Responsive Content Grid: Desktop 2 Columns / Mobile Stacked */}
-        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
           
-          {/* LEFT COLUMN: Controls & Message Selection */}
-          <div className="order-2 md:order-1 md:col-span-6 flex flex-col gap-4">
+          {/* LEFT COLUMN: Controls & Dialogue Editor */}
+          <div className="order-2 md:order-1 md:col-span-6 flex flex-col gap-3">
             
             {/* VIEW A: SINGLE QUOTE EDITOR */}
             {cardMode === 'single' && (
@@ -755,17 +933,17 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
               </>
             )}
 
-            {/* VIEW B: GROUP PHOTO CARD EDITOR */}
+            {/* VIEW B: SCENE-BASED GROUP PHOTO CARD EDITOR */}
             {cardMode === 'group' && (
               <>
                 {/* Group Name Input */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="flex items-center justify-between text-xs font-semibold text-amber-400">
                     <span className="flex items-center gap-1.5">
                       <Users size={13} />
                       গ্রুপের নাম / আড্ডার নাম
                     </span>
-                    <span className="text-[10px] text-slate-400">কার্ডের শীর্ষে দেখাবে</span>
+                    <span className="text-[10px] text-slate-400">কার্ডের শীর্ষে ক্যাপসুল ব্যানারে দেখাবে</span>
                   </label>
                   <input
                     type="text"
@@ -773,57 +951,156 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                     onChange={(e) => setGroupName(e.target.value)}
                     maxLength={36}
                     placeholder="যেমন: সিএসই রাতের আড্ডা ☕🎸, ক্যাম্পাস ফ্রেন্ডস..."
-                    className="w-full bg-slate-950/70 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none transition font-semibold"
+                    className="w-full bg-slate-950/70 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none transition font-semibold"
                   />
                 </div>
 
-                {/* Selected Dialogues Checklist */}
+                {/* Active Speech Bubbles List on Characters */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs font-semibold text-amber-400">
-                    <span>কার্ডে প্রদর্শিত ডায়লগসমূহ ({groupDialogues.length}/৪টি):</span>
-                    <span className="text-[10px] text-slate-400">সর্বোচ্চ ৪টি ডায়লগ</span>
+                    <span>ক্যাম্পাসে স্পিচ বাবলসমূহ ({groupDialogues.length}/৫টি):</span>
+                    {groupDialogues.length < 5 && (
+                      <button
+                        type="button"
+                        onClick={handleAddDialogue}
+                        className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition active:scale-95"
+                      >
+                        <Plus size={12} />
+                        <span>নতুন বাবল যোগ</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-1.5">
-                    {groupDialogues.map((dlg, idx) => (
-                      <div
-                        key={dlg.id || idx}
-                        className="flex items-start gap-2 p-2 rounded-xl bg-slate-950/60 border border-slate-800 text-xs"
-                      >
-                        <span className="text-sm shrink-0">{dlg.emoji || '💬'}</span>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold text-amber-300 text-[11px] truncate">
-                            {dlg.speaker} {dlg.dept && `[${dlg.dept}]`}
+                  {/* Dialogue Accordion/Card List */}
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto no-scrollbar pr-0.5">
+                    {groupDialogues.map((dlg, idx) => {
+                      const char = getCharObj(dlg.characterId);
+                      const theme = BUBBLE_THEMES[idx % BUBBLE_THEMES.length];
+                      const isPickerOpen = activePickerDlgId === dlg.id;
+
+                      return (
+                        <div
+                          key={dlg.id || idx}
+                          className="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs space-y-2 shadow-md relative"
+                        >
+                          {/* Row 1: Character Switcher & Speaker Name & Delete */}
+                          <div className="flex items-center gap-2">
+                            {/* Character Assign Button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActivePickerDlgId(isPickerOpen ? null : dlg.id)
+                              }
+                              className="flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 text-[11px] font-semibold shrink-0 transition"
+                              title="ক্যাম্পাসের ক্যারেক্টার পরিবর্তন করুন"
+                            >
+                              <span>{char.emoji}</span>
+                              <span className="truncate max-w-[70px]">{char.name}</span>
+                              <ChevronDown size={11} className={`transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Speaker Name Input */}
+                            <input
+                              type="text"
+                              value={dlg.speaker}
+                              onChange={(e) => handleUpdateSpeaker(dlg.id, e.target.value)}
+                              placeholder="বক্তার নাম..."
+                              className="flex-1 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2 py-1 text-xs text-slate-100 outline-none font-bold"
+                              title="বক্তার নাম পরিবর্তন করুন"
+                            />
+
+                            {/* Dept Input */}
+                            <input
+                              type="text"
+                              value={dlg.dept || ''}
+                              onChange={(e) => handleUpdateDept(dlg.id, e.target.value)}
+                              placeholder="ডিপার্টমেন্ট..."
+                              className="w-16 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2 py-1 text-xs text-slate-300 outline-none text-center"
+                              title="ডিপার্টমেন্ট"
+                            />
+
+                            {/* Delete Button */}
+                            {groupDialogues.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveGroupDialogue(dlg.id)}
+                                className="p-1 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition shrink-0"
+                                title="মুছে ফেলুন"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
                           </div>
-                          <div className="text-slate-200 text-xs truncate">"{dlg.text}"</div>
+
+                          {/* Character Picker Dropdown Popover (35 Campus Characters) */}
+                          {isPickerOpen && (
+                            <div className="p-2 bg-slate-900 border border-amber-500/50 rounded-xl shadow-xl z-20 space-y-1.5 animate-fadeIn">
+                              <div className="flex items-center justify-between text-[11px] font-semibold text-amber-400">
+                                <span>ক্যাম্পাস সদস্য বেছে নিন (যার মাথার ওপর বাবল থাকবে):</span>
+                                <div className="flex items-center gap-1">
+                                  {(['all', 'foreground', 'midground', 'background'] as const).map((z) => (
+                                    <button
+                                      key={z}
+                                      type="button"
+                                      onClick={() => setCharacterFilterZone(z)}
+                                      className={`px-1.5 py-0.2 rounded text-[10px] ${
+                                        characterFilterZone === z
+                                          ? 'bg-amber-500 text-slate-950 font-bold'
+                                          : 'bg-slate-800 text-slate-400'
+                                      }`}
+                                    >
+                                      {z === 'all' ? 'সব' : z === 'foreground' ? 'সামনে' : z === 'midground' ? 'সিঁড়িতে' : 'গেটে'}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="max-h-[120px] overflow-y-auto no-scrollbar grid grid-cols-3 gap-1">
+                                {filteredCharacters.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => handleAssignCharacter(dlg.id, c.id)}
+                                    className={`flex items-center gap-1 p-1 rounded-lg text-left text-[11px] border transition ${
+                                      dlg.characterId === c.id
+                                        ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-bold'
+                                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-200'
+                                    }`}
+                                  >
+                                    <span>{c.emoji}</span>
+                                    <span className="truncate">{c.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Row 2: Dialogue Quote Textarea */}
+                          <textarea
+                            value={dlg.text}
+                            onChange={(e) => handleUpdateText(dlg.id, e.target.value)}
+                            rows={2}
+                            maxLength={120}
+                            placeholder="এই ক্যারেক্টারের মাথার ওপর ডায়লগ লিখুন..."
+                            className="w-full bg-slate-900 border border-slate-700/80 focus:border-amber-500 rounded-lg p-2 text-xs text-slate-100 outline-none resize-none"
+                          />
                         </div>
-                        {groupDialogues.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveGroupDialogue(dlg.id)}
-                            className="p-1 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition"
-                            title="মুছে ফেলুন"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Room Messages Selection Picker */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="text-xs font-semibold text-slate-300 flex items-center justify-between">
                     <span>
                       {eligibleRoomMessages.length > 0
-                        ? 'রুমের মেসেজ থেকে নির্বাচন করুন (ক্লিক করুন):'
-                        : 'প্রি-মেড আড্ডা সংলাপ টেমপ্লেট:'}
+                        ? 'রুমের চ্যাট থেকে বাবল যোগ করুন (ক্লিক করুন):'
+                        : 'ডিফল্ট আড্ডা বার্তা:'}
                     </span>
                   </div>
 
                   {eligibleRoomMessages.length > 0 ? (
-                    <div className="max-h-[160px] overflow-y-auto no-scrollbar space-y-1.5 p-1 bg-slate-950/40 rounded-2xl border border-slate-800">
+                    <div className="max-h-[130px] overflow-y-auto no-scrollbar space-y-1 p-1 bg-slate-950/40 rounded-2xl border border-slate-800">
                       {eligibleRoomMessages.map((msg) => {
                         const isChecked = groupDialogues.some((d) => d.id === msg.id);
                         return (
@@ -831,7 +1108,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                             key={msg.id}
                             type="button"
                             onClick={() => handleToggleRoomMessage(msg)}
-                            className={`w-full flex items-start gap-2 p-2 rounded-xl text-left border transition text-xs ${
+                            className={`w-full flex items-start gap-2 p-1.5 rounded-xl text-left border transition text-xs ${
                               isChecked
                                 ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-semibold'
                                 : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 text-slate-300'
@@ -839,9 +1116,9 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                           >
                             <div className="pt-0.5 shrink-0">
                               {isChecked ? (
-                                <CheckSquare size={14} className="text-amber-400" />
+                                <CheckSquare size={13} className="text-amber-400" />
                               ) : (
-                                <Square size={14} className="text-slate-500" />
+                                <Square size={13} className="text-slate-500" />
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -860,8 +1137,8 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
                       })}
                     </div>
                   ) : (
-                    <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800 text-slate-400 text-xs">
-                      💡 বর্তমানে কোনো লাইভ রুম চ্যাট পাওয়া যায়নি। ডিফল্ট হিসেবে গিটারিস্ট তানভীর, নিশাত ও শাকিলের আড্ডা সংলাপ গ্রুপ কার্ডে সাজানো হয়েছে!
+                    <div className="p-2 rounded-xl bg-slate-950/50 border border-slate-800 text-slate-400 text-xs">
+                      💡 বর্তমানে কোনো রুমের চ্যাট বার্তা পাওয়া যায়নি। আপনি ওপরের লিস্ট থেকে যেকোনো ক্যারেক্টার নির্বাচন করে নিজের মনের মতো নাম ও ডায়লগ বসাতে পারেন!
                     </div>
                   )}
                 </div>
@@ -871,10 +1148,10 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
           </div>
 
           {/* RIGHT COLUMN: HD Canvas Live Preview & Action Buttons */}
-          <div className="order-1 md:order-2 md:col-span-6 flex flex-col items-center gap-3">
+          <div className="order-1 md:order-2 md:col-span-6 flex flex-col items-center gap-2.5">
             
-            {/* Live Render Canvas */}
-            <div className="w-full max-w-[320px] xs:max-w-[350px] sm:max-w-[370px] aspect-[4/5] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-500/50 relative flex items-center justify-center">
+            {/* Live Render Canvas (2:3 aspect ratio matching campus photo) */}
+            <div className="w-full max-w-[280px] xs:max-w-[310px] sm:max-w-[340px] aspect-[2/3] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-500/50 relative flex items-center justify-center">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full object-contain"
@@ -888,11 +1165,11 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
             </div>
 
             {/* Action Buttons: Download & Share */}
-            <div className="w-full max-w-[370px] grid grid-cols-2 gap-2">
+            <div className="w-full max-w-[340px] grid grid-cols-2 gap-2">
               <a
                 href={downloadUrl}
                 download={cardMode === 'group' ? 'seu-group-photo-card.png' : 'seu-campus-memory.png'}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition active:scale-95"
+                className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition active:scale-95"
               >
                 <Download size={15} />
                 <span>ডাউনলোড (HD)</span>
@@ -901,7 +1178,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
               <button
                 type="button"
                 onClick={handleShare}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs sm:text-sm transition active:scale-95"
+                className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs sm:text-sm transition active:scale-95"
               >
                 <Share2 size={15} />
                 <span>শেয়ার করুন</span>
@@ -912,7 +1189,7 @@ export const PhotoCardModal: React.FC<PhotoCardModalProps> = ({
             <button
               type="button"
               onClick={handleCopyClipboard}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-300 transition py-1"
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-300 transition py-0.5"
             >
               {isCopied ? (
                 <>
