@@ -11,6 +11,7 @@ import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
 import { PhotoCardModal } from './components/Community/PhotoCardModal';
 import { DeveloperModal } from './components/Community/DeveloperModal';
+import { AlumniTreatBanner } from './components/Community/AlumniTreatBanner';
 import { PrivateRoomModal } from './components/Room/PrivateRoomModal';
 import { FloatingRoomChatBar } from './components/Room/FloatingRoomChatBar';
 import { useAddaRoom } from './hooks/useAddaRoom';
@@ -226,6 +227,9 @@ export function App() {
           />
         )}
 
+        {/* Eye-Catching Alumni & Coffee Treat Card (Right in Front on Home Screen!) */}
+        <AlumniTreatBanner onOpenDeveloper={() => setIsDeveloperOpen(true)} />
+
         {/* Floating Bottom Audio Player Capsule Directly Over Artwork Grass */}
         <PlayerControls
           playerState={playerState}
@@ -240,17 +244,21 @@ export function App() {
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
         />
 
-        {/* Developer Publicity & Alumni Treat Watermark (Fahim Shahir) */}
-        <div className="absolute bottom-2.5 left-3 z-20 pointer-events-auto hidden md:block">
+        {/* Developer Publicity & Alumni Treat Floating Watermark (Always Visible on Mobile & Desktop!) */}
+        <div className="absolute bottom-16 sm:bottom-2.5 left-2 sm:left-3 z-20 pointer-events-auto">
           <button
             type="button"
             onClick={() => setIsDeveloperOpen(true)}
-            className="group flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-amber-500/40 hover:border-amber-400 backdrop-blur-md text-[11px] text-slate-200 transition shadow-lg shadow-amber-500/10 cursor-pointer"
+            className="group flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-[#E2136E]/60 hover:border-[#E2136E] backdrop-blur-xl text-[10px] sm:text-[11px] text-slate-100 transition shadow-xl shadow-[#E2136E]/20 active:scale-95 cursor-pointer"
             title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর ও ডেভেলপার — কফি ট্রিট দিন"
           >
-            <span>Crafted with ❤️ by <strong className="text-amber-400 group-hover:underline">Fahim Shahir</strong></span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E2136E]/25 hover:bg-[#E2136E]/35 text-pink-300 border border-[#E2136E]/50 font-bold flex items-center gap-1 shadow-xs transition">
-              <span>☕ ট্রিট দিন</span>
+            <span className="text-xs sm:text-sm">☕</span>
+            <span className="text-slate-200">
+              <span className="hidden sm:inline">Crafted with ❤️ by <strong className="text-amber-400 group-hover:underline">Fahim Shahir</strong> • </span>
+              <strong className="text-pink-300">কফি ফান্ড</strong>
+            </span>
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#E2136E] text-white font-black shadow-xs">
+              বিকাশ
             </span>
           </button>
         </div>

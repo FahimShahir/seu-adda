@@ -244,16 +244,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <span className="hidden sm:inline font-semibold">ফটো কার্ড</span>
           </button>
 
-          {/* 3. Developer Profile Publicity Button (Fahim Shahir) */}
+          {/* 3. Alumni Love & Developer Coffee Treat Button (Prominent & Eye-catching!) */}
           {onOpenDeveloper && (
             <button
               type="button"
               onClick={onOpenDeveloper}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/35 text-amber-300 text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-500/50 shadow-md shadow-amber-500/10 transition active:scale-95 shrink-0 cursor-pointer"
-              title="ক্রিয়েটর ও ডেভেলপার প্রোফাইল — ফাহিম শাহীর"
+              className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-[#E2136E]/25 via-pink-600/30 to-amber-500/25 hover:from-[#E2136E]/40 hover:to-amber-500/40 text-white text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-[#E2136E]/60 shadow-lg shadow-[#E2136E]/20 transition active:scale-95 shrink-0 cursor-pointer"
+              title="অ্যালামনাই কর্নার ও কফি ট্রিট (বিকাশ) — ফাহিম শাহীর"
             >
-              <Code2 size={12} className="text-amber-400 animate-pulse" />
-              <span className="font-bold tracking-tight">Fahim Shahir</span>
+              <span className="text-xs sm:text-sm">☕</span>
+              <span className="font-bold text-amber-300 hidden md:inline">Fahim •</span>
+              <span className="font-extrabold text-pink-200">কফি ট্রিট</span>
+              <span className="text-[9px] bg-[#E2136E] text-white px-1.5 py-0.2 rounded-full font-black animate-pulse shadow-xs">
+                বিকাশ
+              </span>
             </button>
           )}
 
