@@ -41,9 +41,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const { isPlaying, volume, currentTitle, currentAuthor, statusText } = playerState;
 
   return (
-    <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 z-40 max-w-5xl mx-auto pointer-events-auto">
-      <div className="bg-slate-950/85 border border-white/15 backdrop-blur-2xl px-3 sm:px-4 py-1.5 sm:py-2 text-slate-100 shadow-2xl rounded-2xl sm:rounded-full touch-manipulation">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+    <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3 z-40 pointer-events-auto">
+      <div className="bg-slate-950/85 border border-white/15 backdrop-blur-2xl px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-slate-100 shadow-2xl rounded-2xl touch-manipulation">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-3">
           {/* Left: Track Information & Status */}
           <div className="flex items-center gap-2 sm:gap-3 w-1/3 min-w-0">
             {/* Animated Equalizer Bars */}

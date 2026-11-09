@@ -42,7 +42,7 @@ export const CharacterBubble: React.FC<CharacterBubbleProps> = ({
 
   return (
     <div
-      className="absolute z-40 pointer-events-auto transition-all animate-pop w-[270px] xs:w-[300px] sm:w-[340px] max-w-[92%]"
+      className="absolute z-30 pointer-events-auto transition-all animate-pop w-[270px] xs:w-[300px] sm:w-[330px] max-w-[92%]"
       style={{
         ...posStyle,
         filter: 'drop-shadow(0 16px 28px rgba(0, 0, 0, 0.8))'

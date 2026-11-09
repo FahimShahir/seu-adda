@@ -35,8 +35,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🎸',
     x: 54,
     y: 73,
-    width: 11,
-    height: 12,
+    width: 10,
+    height: 11,
     actionType: 'music',
     dialogues: {
       general: [
@@ -90,8 +90,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🗣️',
     x: 41,
     y: 73,
-    width: 9,
-    height: 12,
+    width: 8,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -129,17 +129,17 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 3. Listener with back facing us (Foreground center)
+  // 3. Listener with back facing us (Foreground center - isolated at Y: 84%)
   {
     id: 'front_blue_guy',
     groupName: '☕ চিল ও ডিপ্লোম্যাটিক উইং',
     subName: 'শাকিল (নিরব শ্রোতা)',
     tagline: 'আড্ডায় শুধু চা খায় আর শুনে',
     emoji: '🎵',
-    x: 69,
+    x: 67,
     y: 84,
-    width: 10,
-    height: 12,
+    width: 8,
+    height: 9,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -170,7 +170,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 4. White Panjabi Friend (Right of guitarist)
+  // 4. White Panjabi Friend (Right of guitarist - separated at Y: 73%)
   {
     id: 'white_panjabi_guy',
     groupName: '🏖️ সাজেক ট্যুর প্ল্যানার্স',
@@ -179,8 +179,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '✨',
     x: 77,
     y: 73,
-    width: 9,
-    height: 13,
+    width: 8,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -220,8 +220,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '📚',
     x: 85,
     y: 74,
-    width: 7,
-    height: 11,
+    width: 6.5,
+    height: 10,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -257,8 +257,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '📱',
     x: 94,
     y: 74,
-    width: 9,
-    height: 13,
+    width: 8,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -291,7 +291,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 7. Green Saree Girl (Left circle)
+  // 7. Green Saree Girl (Left circle - X: 8%, Y: 74%)
   {
     id: 'green_saree_girl',
     groupName: '💅 ড্রামা ও ফ্যাশন উইং',
@@ -299,9 +299,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     tagline: 'ছবি তোলা ছাড়া ক্যাম্পাস অসম্পূর্ণ',
     emoji: '🥻',
     x: 8,
-    y: 73,
-    width: 8,
-    height: 13,
+    y: 74,
+    width: 6.5,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -329,17 +329,17 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 8. Pink Salwar Girl (Left circle)
+  // 8. Pink Salwar Girl (Left circle - X: 15.5%, Y: 74%)
   {
     id: 'pink_salwar_girl',
     groupName: '📑 সিআর ও টপার ব্রিগেড',
     subName: 'সামিয়া (ক্লাস প্রতিনিধি / সিআর)',
     tagline: 'সবাইকে অ্যাসাইনমেন্ট মনে করিয়ে দিয়ে গালি খায়',
     emoji: '📑',
-    x: 16,
+    x: 15.5,
     y: 74,
-    width: 8,
-    height: 13,
+    width: 6.5,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -368,17 +368,17 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 9. Cyan Salwar Girl (Left circle)
+  // 9. Cyan Salwar Girl (Left circle - X: 22.5%, Y: 74%)
   {
     id: 'cyan_salwar_girl',
     groupName: '🔍 ক্যাম্পাস গোয়েন্দা সংস্থা',
     subName: 'মালিহা (গসিপ কুইন)',
     tagline: 'কার সাথে কার প্রেম সব খবর রাখে',
     emoji: '💬',
-    x: 23,
-    y: 73,
-    width: 7,
-    height: 12,
+    x: 22.5,
+    y: 74,
+    width: 6.5,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -406,17 +406,17 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 10. Cream Dress Girl (Left circle)
+  // 10. Cream Dress Girl (Left circle - X: 29.5%, Y: 74%)
   {
     id: 'cream_dress_girl',
     groupName: '🕊️ শান্তশিষ্ট ব্যাকবেঞ্চারিনি',
     subName: 'আফসানা (নোটস সিকার)',
     tagline: 'ক্লাসে ঘুমায় কিন্তু রেজাল্ট ভালো',
     emoji: '📝',
-    x: 29,
+    x: 29.5,
     y: 74,
-    width: 7,
-    height: 12,
+    width: 6.5,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -442,7 +442,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 11. Standing Friends by Left Pillar
+  // 11. Standing Friends by Left Pillar (Elevated at Y: 58%, X: 14% - ZERO overlap with girls circle!)
   {
     id: 'standing_trio',
     groupName: '🚶‍♂️ ক্রাশ ট্র্যাকার ও ব্যাকপ্যাক স্কোয়াড',
@@ -450,9 +450,9 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     tagline: 'ক্লাসে না গিয়ে পিলারে হেলান দিয়ে থাকে',
     emoji: '🎒',
     x: 14,
-    y: 62,
-    width: 11,
-    height: 13,
+    y: 58,
+    width: 9,
+    height: 11,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -479,7 +479,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 12. Girls sitting on stairs left of entrance [NEW DETECTED MEMBER]
+  // 12. Girls sitting on stairs left of entrance (X: 37%, Y: 58%)
   {
     id: 'left_stairs_girls',
     groupName: '👭 সিঁড়ির শান্ত কোণ',
@@ -487,7 +487,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     tagline: 'ভিড় এড়িয়ে একটু নিরিবিলি গল্প',
     emoji: '👭',
     x: 37,
-    y: 60,
+    y: 58,
     width: 8,
     height: 8,
     actionType: 'dialogue',
@@ -517,7 +517,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 13. Entrance Gate & Security
+  // 13. Entrance Gate & Security (X: 58%, Y: 56%)
   {
     id: 'gate_turnstile',
     groupName: '👮‍♂️ গেট ও আইডি চেকার জোন',
@@ -526,7 +526,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🏢',
     x: 58,
     y: 56,
-    width: 14,
+    width: 12,
     height: 8,
     actionType: 'gate',
     dialogues: {
@@ -554,7 +554,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 14. Stairs Crowd (Right stairs)
+  // 14. Stairs Crowd on Right (X: 84%, Y: 61%)
   {
     id: 'stairs_crowd',
     groupName: '🏛️ সিঁড়ির ফিলোসফার গ্যাং',
@@ -563,8 +563,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🏛️',
     x: 84,
     y: 61,
-    width: 14,
-    height: 10,
+    width: 12,
+    height: 9,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -590,7 +590,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 15. Student walking on far right [NEW DETECTED MEMBER]
+  // 15. Student walking on far right (X: 96%, Y: 61%)
   {
     id: 'right_walking_guy',
     groupName: '🏃‍♂️ লেট-কামার স্কোয়াড',
@@ -600,7 +600,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     x: 96,
     y: 61,
     width: 6,
-    height: 10,
+    height: 9,
     actionType: 'dialogue',
     dialogues: {
       general: [
@@ -626,7 +626,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 16. Paper Tea Cups & Food Plate
+  // 16. Paper Tea Cups & Food Plate (X: 54%, Y: 81%, isolated)
   {
     id: 'tea_cups',
     groupName: '☕ চায়ের কাপ ও সিঙ্গাড়া',
@@ -635,8 +635,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '☕',
     x: 54,
     y: 81,
-    width: 10,
-    height: 5,
+    width: 8,
+    height: 4.5,
     actionType: 'cheers',
     dialogues: {
       general: [
@@ -662,7 +662,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 17. Southeast University Signboard
+  // 17. Southeast University Signboard (X: 53%, Y: 39%)
   {
     id: 'seu_signboard',
     groupName: '🎓 সাউথইস্ট ইউনিভার্সিটি গর্ব',
@@ -671,7 +671,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '🎓',
     x: 53,
     y: 39,
-    width: 18,
+    width: 16,
     height: 6,
     actionType: 'dialogue',
     dialogues: {
@@ -699,7 +699,7 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     }
   },
 
-  // 18. Hanging Ceiling Lamp
+  // 18. Hanging Ceiling Lamp (X: 46%, Y: 12%)
   {
     id: 'hanging_lamp',
     groupName: '💡 সিলিং লাইট ও আবহাওয়া সুইচ',
@@ -708,8 +708,8 @@ export const CAMPUS_HOTSPOTS: Hotspot[] = [
     emoji: '💡',
     x: 46,
     y: 12,
-    width: 9,
-    height: 8,
+    width: 8,
+    height: 7,
     actionType: 'lamp',
     dialogues: {
       general: [

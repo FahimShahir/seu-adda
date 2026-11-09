@@ -4,7 +4,6 @@ import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { useAmbientAudio } from './hooks/useAmbientAudio';
 import { usePresenceAndConfessions } from './hooks/usePresenceAndConfessions';
 import { HeaderBar } from './components/UI/HeaderBar';
-import { AddaMoodSelector } from './components/UI/AddaMoodSelector';
 import { CampusScene } from './components/Scene/CampusScene';
 import { PlayerControls } from './components/Audio/PlayerControls';
 import { PlaylistModal } from './components/Audio/PlaylistModal';
@@ -75,48 +74,55 @@ export function App() {
         className="fixed bottom-0 right-0 w-2 h-2 opacity-[0.01] pointer-events-none z-0 overflow-hidden"
       />
 
-      {/* Floating Top Header Navigation (Directly Over Artwork) */}
-      <HeaderBar
-        onlineCount={onlineCount}
-        isNight={isNight}
-        isRain={isRain}
-        onToggleNight={() => setIsNight(prev => !prev)}
-        onToggleRain={handleToggleRain}
-        onOpenConfessions={() => setIsConfessionOpen(true)}
-        onCheers={handleCheers}
+      {/* Ambient Blurred Widescreen Backdrop (Fills PC Monitors Seamlessly Edge-to-Edge) */}
+      <img
+        src={isNight ? "./images/campus-night.jpg" : "./images/campus-day.jpg"}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover filter blur-3xl scale-125 opacity-35 pointer-events-none select-none transition-all duration-1000"
       />
 
-      {/* Floating Adda Mood / Topic Selector (Directly Over Artwork) */}
-      <AddaMoodSelector
-        currentMood={currentMood}
-        onSelectMood={setCurrentMood}
-      />
+      {/* Central Sharp Artwork Frame with Overlaid Controls (No Overlaps, Zero Black Gaps) */}
+      <main className="relative h-full aspect-[686/1024] max-w-full mx-auto flex items-center justify-center shadow-2xl touch-manipulation select-none overflow-hidden">
+        {/* Interactive Campus Scene with Hotspots & Dialogues */}
+        <CampusScene
+          isNight={isNight}
+          isRain={isRain}
+          isPlaying={playerState.isPlaying}
+          currentMood={currentMood}
+          onToggleNight={() => setIsNight(prev => !prev)}
+          onTogglePlay={togglePlay}
+          onGuitarStrum={playGuitarStrum}
+          onTeaClink={playTeaClink}
+        />
 
-      {/* Full-Viewport Campus Scene Canvas (100% Screen Height & Widescreen Ambient Blur) */}
-      <CampusScene
-        isNight={isNight}
-        isRain={isRain}
-        isPlaying={playerState.isPlaying}
-        currentMood={currentMood}
-        onToggleNight={() => setIsNight(prev => !prev)}
-        onTogglePlay={togglePlay}
-        onGuitarStrum={playGuitarStrum}
-        onTeaClink={playTeaClink}
-      />
+        {/* Floating Top Header Navigation with Integrated Mood Selector */}
+        <HeaderBar
+          onlineCount={onlineCount}
+          isNight={isNight}
+          isRain={isRain}
+          currentMood={currentMood}
+          onSelectMood={setCurrentMood}
+          onToggleNight={() => setIsNight(prev => !prev)}
+          onToggleRain={handleToggleRain}
+          onOpenConfessions={() => setIsConfessionOpen(true)}
+          onCheers={handleCheers}
+        />
 
-      {/* Floating Bottom Audio Player Capsule (Directly Over Artwork Grass) */}
-      <PlayerControls
-        playerState={playerState}
-        isNight={isNight}
-        isRain={isRain}
-        onTogglePlay={togglePlay}
-        onNext={nextTrack}
-        onPrev={prevTrack}
-        onVolumeChange={setVolume}
-        onToggleNight={() => setIsNight(prev => !prev)}
-        onToggleRain={handleToggleRain}
-        onOpenPlaylist={() => setIsPlaylistOpen(true)}
-      />
+        {/* Floating Bottom Audio Player Capsule Directly Over Artwork Grass */}
+        <PlayerControls
+          playerState={playerState}
+          isNight={isNight}
+          isRain={isRain}
+          onTogglePlay={togglePlay}
+          onNext={nextTrack}
+          onPrev={prevTrack}
+          onVolumeChange={setVolume}
+          onToggleNight={() => setIsNight(prev => !prev)}
+          onToggleRain={handleToggleRain}
+          onOpenPlaylist={() => setIsPlaylistOpen(true)}
+        />
+      </main>
 
       {/* Playlist Selector Modal */}
       <PlaylistModal

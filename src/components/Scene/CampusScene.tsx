@@ -66,27 +66,15 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950 select-none">
-      {/* Ambient Blurred Widescreen Backdrop (Fills Widescreen PC Monitors Edge-to-Edge) */}
+    <div className="absolute inset-0 w-full h-full select-none overflow-hidden touch-manipulation">
+      {/* Base Artwork - Day Mode */}
       <img
-        src={isNight ? "./images/campus-night.jpg" : "./images/campus-day.jpg"}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover filter blur-3xl scale-125 opacity-40 pointer-events-none select-none transition-all duration-1000"
+        src="./images/campus-day.jpg"
+        alt="Southeast University Campus Adda - Day"
+        className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-1000 ${
+          isNight ? 'opacity-0' : 'opacity-100'
+        }`}
       />
-
-      {/* Main Sharp Interactive Campus Artwork Frame */}
-      <div
-        className="relative h-full aspect-[686/1024] max-w-full flex items-center justify-center shadow-2xl touch-manipulation select-none overflow-hidden"
-      >
-        {/* Base Artwork - Day Mode */}
-        <img
-          src="./images/campus-day.jpg"
-          alt="Southeast University Campus Adda - Day"
-          className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-1000 ${
-            isNight ? 'opacity-0' : 'opacity-100'
-          }`}
-        />
 
         {/* Base Artwork - Night Mode */}
         <img
@@ -198,7 +186,6 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
             onClose={() => setActiveHotspot(null)}
           />
         )}
-      </div>
     </div>
   );
 };
