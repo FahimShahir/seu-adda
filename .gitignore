@@ -22,4 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+infinityfree_package/
+infinityfree_package.zip
+*.db
+
 

@@ -12,7 +12,6 @@ import {
 
 // High-speed, highly reliable EMQX public broker for browser WebSockets
 const PRIMARY_MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
-const FALLBACK_MQTT_BROKER = 'wss://broker.hivemq.com:8884/mqtt';
 const ROOM_STORAGE_PREFIX = 'seu_adda_room_';
 
 interface QueuedOutboxMessage {
@@ -58,6 +57,10 @@ export function generateRoomId(): string {
 }
 
 export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
+  // Flag indicating if PHP MySQL backend is available on server (e.g. InfinityFree)
+  const [isPhpBackend, setIsPhpBackend] = useState<boolean>(false);
+  const lastMsgDbIdRef = useRef<number>(0);
+
   // Current user info (name, dept, gender, claimed characterId)
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -94,7 +97,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
   });
 
   const [activeRoom, setActiveRoom] = useState<AddaRoom | null>(() => {
-    // If URL has ?room=SEU-XXXX, see if we have it locally cached
     try {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
@@ -136,6 +138,18 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const mqttClientRef = useRef<MqttClient | null>(null);
   const outboxRef = useRef<QueuedOutboxMessage[]>([]);
+
+  // Detect PHP MySQL backend availability on startup
+  useEffect(() => {
+    fetch('./api/rooms.php?action=test')
+      .then((res) => {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          setIsPhpBackend(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Save current user to local storage whenever updated
   const saveCurrentUser = useCallback(
@@ -250,7 +264,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     });
   }, []);
 
-  // Handle incoming authoritative room state from broker (/state with retain: true)
+  // Handle incoming authoritative room state from broker or PHP MySQL API
   const handleIncomingState = useCallback(
     (incoming: AddaRoom) => {
       if (!incoming || !incoming.id) return;
@@ -260,7 +274,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       if (incoming.expiresAt <= now) {
         setActiveRoom(null);
         setActiveSpeechBubbles([]);
-        setRoomError('⌛ আড্ডা রুমের মেয়াদ শেষ হয়ে গেছে।');
+        setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে।');
         try {
           localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${incoming.id}`);
           window.history.replaceState({}, '', window.location.pathname);
@@ -276,13 +290,12 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       updateRoomState((prev) => {
         if (!prev) {
-          // Newly arrived on this device: hydrate from broker!
+          // Newly arrived on this device: hydrate from server!
           const exists = incoming.participants.some((p) => p.id === me.id);
           let participants = [...incoming.participants];
           let assignedCharId = me.characterId;
 
           if (!exists && me.name) {
-            // Check character conflict: if chosen character is already claimed by someone else, auto-reassign
             const takenCharIds = incoming.participants.map((p) => p.characterId);
             if (takenCharIds.includes(assignedCharId)) {
               const candidates = CAMPUS_CHARACTERS.filter((c) => c.gender === me.gender);
@@ -312,7 +325,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             participants
           };
 
-          // If incoming room has song and differs, sync playback
           if (incoming.currentSong?.source && onRoomSongChangeRef.current) {
             onRoomSongChangeRef.current(incoming.currentSong.source);
           }
@@ -328,7 +340,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           }
         }
 
-        // Union merge participants
         const pMap = new Map<string, RoomParticipant>();
         incoming.participants.forEach((p) => pMap.set(p.id, p));
         prev.participants.forEach((p) => {
@@ -338,7 +349,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           }
         });
 
-        // Sync song if updated
         if (
           incoming.currentSong &&
           incoming.currentSong.source !== prev.currentSong?.source &&
@@ -367,7 +377,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const current = activeRoomRef.current;
       const me = currentUserRef.current;
 
-      // Ignore our own events
       if (event.senderId === me.id) return;
 
       if (event.type === 'ROOM_DESTROYED') {
@@ -395,7 +404,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             };
           });
 
-          // Trigger on-screen 30-second speech bubble for that character
           triggerSpeechBubble(msg);
         }
       } else if (event.type === 'ROOM_CHARACTER_TRANSFER') {
@@ -455,7 +463,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
             return next;
           });
 
-          // Host or online peer republishes the updated room state to retained topic
           if (updatedRoomState) {
             publishRetainedState(updatedRoomState);
           }
@@ -549,10 +556,8 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       mqttClientRef.current = client;
 
       client.on('connect', () => {
-        // Subscribe to both retained state topic and live events topic
         client.subscribe([stateTopic, eventsTopic], { qos: 1 }, (err) => {
           if (!err) {
-            // Drain outbox queue immediately
             while (outboxRef.current.length > 0) {
               const item = outboxRef.current.shift();
               if (item) {
@@ -567,7 +572,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       client.on('message', (topic, payload) => {
         const payloadStr = payload.toString();
-        if (!payloadStr) return; // Cleared retained state
+        if (!payloadStr) return;
 
         if (topic === stateTopic) {
           try {
@@ -587,7 +592,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       });
 
       client.on('error', (err) => {
-        console.warn('EMQX MQTT warning, will reconnect:', err);
+        console.warn('EMQX MQTT warning:', err);
       });
     } catch (e) {
       console.error('MQTT setup error:', e);
@@ -600,6 +605,100 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     };
   }, [activeRoom?.id, handleIncomingEvent, handleIncomingState]);
 
+  // PHP MySQL API Real-Time Polling (every 1.5s for messages, every 5s for room state & heartbeat)
+  useEffect(() => {
+    if (!isPhpBackend || !activeRoom?.id) return;
+    const roomId = activeRoom.id;
+
+    // 1. Message Polling (ultra-fast 1.6s interval for incoming chat & speech bubbles)
+    const msgPollInterval = setInterval(() => {
+      fetch(`./api/messages.php?action=poll&room_id=${roomId}&after_id=${lastMsgDbIdRef.current}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.messages) && data.messages.length > 0) {
+            let maxDbId = lastMsgDbIdRef.current;
+            const newToRender: ChatMessage[] = [];
+
+            for (const m of data.messages) {
+              if (m.dbId && m.dbId > maxDbId) maxDbId = m.dbId;
+              if (m.senderId !== currentUserRef.current.id) {
+                newToRender.push(m);
+                triggerSpeechBubble(m);
+              }
+            }
+            lastMsgDbIdRef.current = maxDbId;
+
+            if (newToRender.length > 0) {
+              updateRoomState((prev) => {
+                if (!prev) return null;
+                const existing = new Set(prev.messages.map((x) => x.id));
+                const distinct = newToRender.filter((x) => !existing.has(x.id));
+                if (distinct.length === 0) return prev;
+                return {
+                  ...prev,
+                  messages: [...prev.messages, ...distinct]
+                };
+              });
+            }
+          }
+        })
+        .catch(() => {});
+    }, 1600);
+
+    // 2. Room State & Heartbeat Polling (every 5s to keep MySQL participant presence & countdown exact)
+    const roomPollInterval = setInterval(() => {
+      // Send Heartbeat to MySQL
+      fetch('./api/rooms.php?action=heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId,
+          participantId: currentUserRef.current.id
+        })
+      }).catch(() => {});
+
+      // Fetch Latest Authoritative Room State from MySQL
+      fetch(`./api/rooms.php?action=get&room_id=${roomId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((serverRoom) => {
+          if (!serverRoom || serverRoom.error) {
+            setActiveRoom(null);
+            setActiveSpeechBubbles([]);
+            setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে বা রুমটি বন্ধ হয়েছে।');
+            return;
+          }
+
+          if (typeof serverRoom.remainingMs === 'number') {
+            setTimeRemaining(formatTimeRemaining(serverRoom.remainingMs));
+          }
+
+          updateRoomState((prev) => {
+            if (!prev) return serverRoom;
+            if (
+              serverRoom.currentSong &&
+              serverRoom.currentSong.source !== prev.currentSong?.source &&
+              onRoomSongChangeRef.current
+            ) {
+              onRoomSongChangeRef.current(serverRoom.currentSong.source);
+            }
+            return {
+              ...prev,
+              createdAt: serverRoom.createdAt || prev.createdAt,
+              expiresAt: serverRoom.expiresAt || prev.expiresAt,
+              currentSong: serverRoom.currentSong || prev.currentSong,
+              participants: serverRoom.participants || prev.participants
+            };
+          });
+        })
+        .catch(() => {});
+    }, 5000);
+
+    return () => {
+      clearInterval(msgPollInterval);
+      clearInterval(roomPollInterval);
+    };
+  }, [activeRoom?.id, isPhpBackend, triggerSpeechBubble, updateRoomState]);
+
   // Speech Bubble Cleanup & Wind Drift Transition Timer (every 500ms)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -611,10 +710,8 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
         for (const bubble of prev) {
           if (now >= bubble.expiresAt) {
-            // Expired, remove
             changed = true;
           } else if (!bubble.isDrifting && bubble.expiresAt - now <= 2800) {
-            // Entering final 2.8s: gently drift away with the campus breeze
             changed = true;
             next.push({ ...bubble, isDrifting: true });
           } else {
@@ -650,7 +747,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           timestamp: now
         });
 
-        // Clear retained state on MQTT broker
         publishMqtt(`seu-adda/rooms/${current.id}/state`, '', { retain: true, qos: 1 });
 
         setActiveRoom(null);
@@ -679,7 +775,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const now = Date.now();
       const me = currentUserRef.current;
 
-      // Broadcast our presence heartbeat
       dispatchRoomEvent({
         type: 'ROOM_HEARTBEAT',
         roomId: current.id,
@@ -688,7 +783,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: now
       });
 
-      // Filter out participants inactive for > 28 seconds
       updateRoomState((prev) => {
         if (!prev) return null;
         const activeParticipants = prev.participants.filter(
@@ -716,7 +810,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     return () => clearInterval(interval);
   }, [activeRoom?.id, dispatchRoomEvent, publishMqtt, publishRetainedState, updateRoomState]);
 
-  // 1. Create a New Room (Host publishes retained state and broadcasts join)
+  // 1. Create a New Room
   const createRoom = useCallback(
     (
       roomTitle: string,
@@ -739,7 +833,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       const roomId = generateRoomId();
       const now = Date.now();
-      const expiresAt = now + 2 * 60 * 60 * 1000; // exactly 2 hours
+      const expiresAt = now + 2 * 60 * 60 * 1000; // 2 hours
 
       const hostParticipant: RoomParticipant = {
         id: currentUser.id,
@@ -782,7 +876,24 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       setTimeRemaining('০২:০০:০০');
       setIsConnecting(false);
 
-      // Publish retained state to broker immediately (or queue if client still connecting)
+      // Save to PHP MySQL Backend if available
+      if (isPhpBackend) {
+        fetch('./api/rooms.php?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: roomId,
+            name: cleanTitle,
+            hostId: currentUser.id,
+            hostName: cleanHostName,
+            hostDept: cleanDept,
+            gender,
+            characterId: finalCharId
+          })
+        }).catch(() => {});
+      }
+
+      // Publish retained state to MQTT broker
       publishRetainedState(newRoom);
 
       // Dispatch ROOM_JOIN event
@@ -796,10 +907,10 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       return roomId;
     },
-    [currentUser.id, dispatchRoomEvent, publishRetainedState, saveCurrentUser]
+    [currentUser.id, dispatchRoomEvent, isPhpBackend, publishRetainedState, saveCurrentUser]
   );
 
-  // 2. Join an Existing Room (Dispatches join and requests instant sync)
+  // 2. Join an Existing Room
   const joinRoom = useCallback(
     (
       roomIdInput: string,
@@ -830,7 +941,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         }
       } catch (e) {}
 
-      // If room is locally cached and already expired, reject
       if (targetRoom && now >= targetRoom.expiresAt) {
         setRoomError('⚠️ এই রুমটির ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে। নতুন রুম তৈরি করুন।');
         setIsConnecting(false);
@@ -840,7 +950,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         return false;
       }
 
-      // If not in local cache, create provisional structure while MQTT hydrates true state
       if (!targetRoom) {
         targetRoom = {
           id: cleanedId,
@@ -854,7 +963,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         };
       }
 
-      // Check available characters
       const takenCharIds = targetRoom.participants.map((p) => p.characterId);
       let assignedCharId = characterId;
       if (!assignedCharId || takenCharIds.includes(assignedCharId)) {
@@ -908,7 +1016,28 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       setActiveRoom(joinedRoom);
       setIsConnecting(false);
 
-      // Queue ROOM_JOIN event so all connected devices receive it
+      // Join room in PHP MySQL API if available
+      if (isPhpBackend) {
+        fetch('./api/rooms.php?action=join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId: cleanedId,
+            participant: newParticipant
+          })
+        }).catch(() => {});
+
+        // Fetch full server room state from MySQL
+        fetch(`./api/rooms.php?action=get&room_id=${cleanedId}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((serverRoom) => {
+            if (serverRoom && serverRoom.id) {
+              handleIncomingState(serverRoom);
+            }
+          })
+          .catch(() => {});
+      }
+
       dispatchRoomEvent({
         type: 'ROOM_JOIN',
         roomId: cleanedId,
@@ -917,7 +1046,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: now
       });
 
-      // Request immediate state sync from online peers
       dispatchRoomEvent({
         type: 'ROOM_SYNC_REQUEST',
         roomId: cleanedId,
@@ -928,10 +1056,10 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       return true;
     },
-    [currentUser.id, dispatchRoomEvent, saveCurrentUser]
+    [currentUser.id, dispatchRoomEvent, handleIncomingState, isPhpBackend, saveCurrentUser]
   );
 
-  // 3. Transfer / Switch to Another Character (Exclusive Lock Check)
+  // 3. Transfer / Switch to Another Character
   const transferCharacter = useCallback(
     (newCharacterId: string) => {
       const current = activeRoomRef.current;
@@ -940,7 +1068,6 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       const charObj = CAMPUS_CHARACTERS.find((c) => c.id === newCharacterId);
       if (!charObj) return false;
 
-      // EXCLUSIVE LOCK: Check if another participant already claimed this character
       const isClaimedByOther = current.participants.some(
         (p) => p.characterId === newCharacterId && p.id !== currentUser.id
       );
@@ -970,6 +1097,19 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         return next;
       });
 
+      // Update in PHP MySQL backend
+      if (isPhpBackend) {
+        fetch('./api/rooms.php?action=transfer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId: current.id,
+            participantId: currentUser.id,
+            newCharacterId
+          })
+        }).catch(() => {});
+      }
+
       dispatchRoomEvent({
         type: 'ROOM_CHARACTER_TRANSFER',
         roomId: current.id,
@@ -984,7 +1124,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       return true;
     },
-    [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, publishRetainedState, saveCurrentUser, updateRoomState]
+    [currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, isPhpBackend, publishRetainedState, saveCurrentUser, updateRoomState]
   );
 
   // 4. Leave Room
@@ -1005,11 +1145,23 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       isSystem: true
     };
 
+    if (isPhpBackend) {
+      fetch('./api/rooms.php?action=leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: current.id,
+          participantId: currentUser.id,
+          name: currentUser.name
+        })
+      }).catch(() => {});
+    }
+
     if (remaining.length === 0) {
       try {
         localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${current.id}`);
       } catch (e) {}
-      // Clear retained state on MQTT broker
+
       publishMqtt(`seu-adda/rooms/${current.id}/state`, '', { retain: true, qos: 1 });
 
       dispatchRoomEvent({
@@ -1045,9 +1197,9 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     try {
       window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {}
-  }, [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, publishMqtt, publishRetainedState]);
+  }, [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, isPhpBackend, publishMqtt, publishRetainedState]);
 
-  // 5. Send Chat Message (Trigger 30-second speech bubble + retained state sync)
+  // 5. Send Chat Message
   const sendChatMessage = useCallback(
     (text: string) => {
       const current = activeRoomRef.current;
@@ -1081,10 +1233,27 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         return next;
       });
 
-      // Trigger local speech bubble immediately
       triggerSpeechBubble(newMsg);
 
-      // Broadcast live event for other devices to trigger speech bubble
+      // Save to PHP MySQL backend
+      if (isPhpBackend) {
+        fetch('./api/messages.php?action=send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId: current.id,
+            message: newMsg
+          })
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((res) => {
+            if (res && res.dbId) {
+              lastMsgDbIdRef.current = Math.max(lastMsgDbIdRef.current, res.dbId);
+            }
+          })
+          .catch(() => {});
+      }
+
       dispatchRoomEvent({
         type: 'ROOM_CHAT_MESSAGE',
         roomId: current.id,
@@ -1093,12 +1262,11 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         timestamp: Date.now()
       });
 
-      // Update retained state so new joiners and history drawer have the message
       if (updatedRoomState) {
         publishRetainedState(updatedRoomState);
       }
     },
-    [currentUser.characterId, currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, publishRetainedState, triggerSpeechBubble, updateRoomState]
+    [currentUser.characterId, currentUser.dept, currentUser.id, currentUser.name, dispatchRoomEvent, isPhpBackend, publishRetainedState, triggerSpeechBubble, updateRoomState]
   );
 
   // 6. Broadcast Room Song Change
@@ -1136,6 +1304,17 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         return next;
       });
 
+      if (isPhpBackend) {
+        fetch('./api/rooms.php?action=song', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId: current.id,
+            song: newSong
+          })
+        }).catch(() => {});
+      }
+
       dispatchRoomEvent({
         type: 'ROOM_SONG_CHANGE',
         roomId: current.id,
@@ -1152,7 +1331,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         onRoomSongChange(source);
       }
     },
-    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, onRoomSongChange, publishRetainedState, updateRoomState]
+    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, isPhpBackend, onRoomSongChange, publishRetainedState, updateRoomState]
   );
 
   return {

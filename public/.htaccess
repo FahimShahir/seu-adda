@@ -1,0 +1,35 @@
+# ==============================================================================
+# SEU Adda — Apache .htaccess Configuration for InfinityFree
+# ==============================================================================
+
+# Enable UTF-8 encoding by default
+AddDefaultCharset UTF-8
+
+# MIME Types
+AddType application/json .json
+AddType application/javascript .js
+AddType text/css .css
+AddType image/jpeg .jpg .jpeg
+AddType image/png .png
+
+# Security & CORS Headers
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+</IfModule>
+
+# Handle Single Page App Navigation
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # Do not rewrite existing files or api requests
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d [OR]
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^ - [L]
+    
+    # Route everything else to index.html
+    RewriteRule ^ index.html [L]
+</IfModule>

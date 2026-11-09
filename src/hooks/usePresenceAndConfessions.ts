@@ -71,6 +71,21 @@ export function usePresenceAndConfessions() {
 
   const mqttClientRef = useRef<MqttClient | null>(null);
 
+  // Auto-sync with PHP MySQL API if hosted on PHP server (InfinityFree)
+  useEffect(() => {
+    fetch('./api/confessions.php?action=list')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setConfessions(data);
+          try {
+            localStorage.setItem('seu_confessions', JSON.stringify(data));
+          } catch (_) {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Calculate realistic live online presence based on current hour in Bangladesh
   useEffect(() => {
     const updateCount = () => {
@@ -97,7 +112,7 @@ export function usePresenceAndConfessions() {
     return () => clearInterval(interval);
   }, []);
 
-  // Realtime multi-device synchronization via HiveMQ WebSockets MQTT
+  // Realtime multi-device synchronization via EMQX WebSockets MQTT
   useEffect(() => {
     const clientId = 'seu_user_' + Math.random().toString(36).substring(2, 9);
     let client: MqttClient | null = null;
@@ -203,6 +218,18 @@ export function usePresenceAndConfessions() {
       return updated;
     });
 
+    // Save to PHP MySQL Backend if available
+    fetch('./api/confessions.php?action=create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        author: newConfession.author,
+        dept: newConfession.dept,
+        batch: '52nd Batch',
+        text: newConfession.text
+      })
+    }).catch(() => {});
+
     // Publish to real-time MQTT broker for cross-device broadcast
     try {
       if (mqttClientRef.current?.connected) {
@@ -230,6 +257,13 @@ export function usePresenceAndConfessions() {
       return updated;
     });
 
+    // Save like to PHP MySQL Backend
+    fetch('./api/confessions.php?action=like', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    }).catch(() => {});
+
     // Publish to real-time MQTT broker
     try {
       if (mqttClientRef.current?.connected) {
@@ -251,4 +285,3 @@ export function usePresenceAndConfessions() {
     likeConfession
   };
 }
-
