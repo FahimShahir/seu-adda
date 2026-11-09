@@ -136,7 +136,7 @@ export function App() {
       <div
         ref={containerRef}
         aria-hidden="true"
-        className="fixed bottom-0 right-0 w-4 h-4 opacity-[0.01] pointer-events-none select-none -z-50 overflow-hidden"
+        className="fixed bottom-0 right-0 w-[200px] h-[200px] opacity-[0.002] pointer-events-none select-none -z-50 overflow-hidden"
       />
 
       {/* Ambient Blurred Widescreen Backdrop (Cleanly Clipped Container) */}

@@ -199,3 +199,4 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
     </div>
   );
 };
+

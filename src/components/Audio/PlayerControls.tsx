@@ -74,9 +74,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               </div>
               <div className="text-[10px] text-slate-400 truncate flex items-center gap-1.5">
                 <span className="truncate">{currentAuthor}</span>
-                <span className="hidden xs:inline-block text-[9px] px-1 bg-slate-800 rounded text-amber-400/80 shrink-0">
-                  {statusText}
-                </span>
+                {statusText && (
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded shrink-0 font-medium ${
+                    statusText.includes('⚠️')
+                      ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40 font-bold'
+                      : 'bg-slate-800/90 text-amber-400/90 border border-white/5'
+                  }`}>
+                    {statusText}
+                  </span>
+                )}
               </div>
             </div>
           </div>

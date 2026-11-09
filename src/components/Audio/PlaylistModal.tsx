@@ -19,6 +19,8 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
 }) => {
   const [customInput, setCustomInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusNotice, setStatusNotice] = useState('');
 
   if (!isOpen) return null;
 
@@ -26,12 +28,19 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
     e.preventDefault();
     if (!customInput.trim()) return;
 
+    setIsSubmitting(true);
+    setErrorMsg('');
     const success = onPlayCustomSource(customInput.trim());
     if (success) {
-      setErrorMsg('');
-      setCustomInput('');
-      onClose();
+      setStatusNotice('✅ গানটি প্লেয়ারে লোড হচ্ছে... এখনই বাজতে শুরু করছে 🎶');
+      setTimeout(() => {
+        setIsSubmitting(false);
+        setStatusNotice('');
+        setCustomInput('');
+        onClose();
+      }, 700);
     } else {
+      setIsSubmitting(false);
       setErrorMsg('অনুগ্রহ করে সঠিক YouTube গান বা প্লেলিস্ট লিংক দিন (যেমন: youtu.be/... অথবা youtube.com/watch?v=...)');
     }
   };
@@ -106,15 +115,16 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
             />
             <button
               type="submit"
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow-md shadow-amber-500/20"
+              disabled={isSubmitting}
+              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
             >
-              প্লে করুন 🎶
+              {isSubmitting ? 'লোড হচ্ছে...' : 'প্লে করুন 🎶'}
             </button>
           </div>
 
-          {/* Quick Examples */}
-          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] text-slate-400">উদাহরণ:</span>
+          {/* Quick Examples with One-Click Instant Play */}
+          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] text-slate-400">এক-ক্লিকে গান শুনুন:</span>
             {[
               { label: '🎸 তোমারে দেখিলো', url: 'https://www.youtube.com/watch?v=J8zt4YdRoBI' },
               { label: '☕ পড়েনা চোখের পলক', url: 'https://www.youtube.com/watch?v=lN4vbH9FGKY' },
@@ -127,15 +137,30 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
                 onClick={() => {
                   setCustomInput(ex.url);
                   setErrorMsg('');
+                  setIsSubmitting(true);
+                  onPlayCustomSource(ex.url);
+                  setStatusNotice(`✅ "${ex.label}" লোড হচ্ছে... এখনই শুরু হচ্ছে 🎶`);
+                  setTimeout(() => {
+                    setIsSubmitting(false);
+                    setStatusNotice('');
+                    onClose();
+                  }, 650);
                 }}
-                className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-amber-300/90 border border-white/5 transition"
+                className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-amber-500/20 hover:border-amber-500/40 text-amber-300/90 border border-white/5 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                title="সরাসরি প্লে করতে ক্লিক করুন"
               >
-                {ex.label}
+                <span>{ex.label}</span>
+                <span className="text-[8px] opacity-75">▶</span>
               </button>
             ))}
           </div>
+          {statusNotice && (
+            <p className="text-[11px] text-emerald-400 mt-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-1.5 animate-fadeIn font-semibold">
+              {statusNotice}
+            </p>
+          )}
           {errorMsg && (
-            <p className="text-[11px] text-rose-400 mt-2 bg-rose-500/10 border border-rose-500/20 rounded-lg p-1.5">
+            <p className="text-[11px] text-rose-400 mt-2 bg-rose-500/10 border border-rose-500/20 rounded-lg p-1.5 animate-fadeIn">
               ⚠️ {errorMsg}
             </p>
           )}
