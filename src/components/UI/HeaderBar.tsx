@@ -244,24 +244,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <span className="hidden sm:inline font-semibold">ফটো কার্ড</span>
           </button>
 
-          {/* 3. Alumni Love & Developer Coffee Treat Button (Prominent & Eye-catching!) */}
-          {onOpenDeveloper && (
-            <button
-              type="button"
-              onClick={onOpenDeveloper}
-              className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-[#E2136E]/25 via-pink-600/30 to-amber-500/25 hover:from-[#E2136E]/40 hover:to-amber-500/40 text-white text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-[#E2136E]/60 shadow-lg shadow-[#E2136E]/20 transition active:scale-95 shrink-0 cursor-pointer"
-              title="অ্যালামনাই কর্নার ও কফি ট্রিট (বিকাশ) — ফাহিম শাহীর"
-            >
-              <span className="text-xs sm:text-sm">☕</span>
-              <span className="font-bold text-amber-300 hidden md:inline">Fahim •</span>
-              <span className="font-extrabold text-pink-200">কফি ট্রিট</span>
-              <span className="text-[9px] bg-[#E2136E] text-white px-1.5 py-0.2 rounded-full font-black animate-pulse shadow-xs">
-                বিকাশ
-              </span>
-            </button>
-          )}
-
-          {/* 4. More Options Dropdown ("⋯" / "আরও ▾") */}
+          {/* 3. More Options Dropdown ("⋯" / "আরও ▾") */}
           <div ref={moreMenuRef} className="relative shrink-0">
             <button
               type="button"
@@ -361,7 +344,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   </button>
                 )}
 
-                {/* Alumni Love & Coffee Treat Fund (bKash) */}
+                {/* Creator Profile & Coffee Treat */}
                 {onOpenDeveloper && (
                   <button
                     type="button"
@@ -369,43 +352,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                       onOpenDeveloper();
                       setIsMoreOpen(false);
                     }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs bg-gradient-to-r from-pink-500/15 via-[#E2136E]/15 to-amber-500/10 hover:from-pink-500/25 hover:to-amber-500/20 border border-[#E2136E]/30 transition cursor-pointer"
-                    title="অ্যালামনাই ভালোবাসা ও কফি ফান্ড (বিকাশ)"
-                  >
-                    <div className="p-1.5 rounded-lg bg-[#E2136E]/20 text-pink-400 shrink-0">
-                      <Heart size={14} className="fill-[#E2136E] text-[#E2136E] animate-pulse" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-pink-300 flex items-center justify-between">
-                        <span>অ্যালামনাই কফি ফান্ড</span>
-                        <span className="text-[9px] bg-[#E2136E] text-white px-1.5 py-0.2 rounded-full font-black shadow-xs">
-                          বিকাশ
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-300 truncate">ক্যাম্পাস আড্ডা সচল রাখতে ট্রিট দিন ☕</div>
-                    </div>
-                  </button>
-                )}
-
-                {/* Developer Profile Modal */}
-                {onOpenDeveloper && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenDeveloper();
-                      setIsMoreOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-slate-200 hover:bg-slate-900/90 hover:text-white transition cursor-pointer border-t border-white/5 pt-2"
+                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs bg-slate-900/60 hover:bg-slate-800 text-slate-200 hover:text-white transition cursor-pointer border border-white/5"
+                    title="ক্রিয়েটর পরিচিতি ও কফি ট্রিট"
                   >
                     <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 shrink-0">
                       <Code2 size={14} />
                     </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-slate-100 flex items-center gap-1.5">
-                        <span>👨‍💻 ডেভেলপার পরিচিতি</span>
-                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/25 text-amber-300 font-bold border border-amber-500/35">ক্রিয়েটর</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-slate-100 flex items-center justify-between">
+                        <span>👨‍💻 ক্রিয়েটর & কফি ট্রিট</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                          Fahim
+                        </span>
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">ফাহিম শাহীর • ইমেইল, ফেসবুক ও হোয়াটসঅ্যাপ</div>
+                      <div className="text-[10px] text-slate-400 truncate">ফাহিম শাহীর • পরিচিতি ও অ্যালামনাই কর্নার ☕</div>
                     </div>
                   </button>
                 )}

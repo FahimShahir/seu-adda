@@ -106,12 +106,143 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
         {/* Header Badge */}
         <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400/90 mb-3">
           <Code2 size={15} />
-          <span>ক্রিয়েটর ও অ্যালামনাই কর্নার</span>
+          <span>ক্রিয়েটর ও ডেভেলপার প্রোফাইল</span>
           <Sparkles size={13} className="text-amber-400 animate-pulse" />
         </div>
 
-        {/* Featured: Alumni Love & Coffee Fund Card (bKash Support) — Right at Top! */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#E2136E]/25 via-purple-950/40 to-amber-950/30 border-2 border-[#E2136E]/60 p-3.5 sm:p-4 mb-5 shadow-2xl shadow-[#E2136E]/20">
+        {/* 1. Developer Profile & Intro (FIRST as requested!) */}
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="relative mb-3 group">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden border-2 border-amber-500/60 shadow-xl shadow-amber-500/20 bg-slate-800 transition-transform duration-300 group-hover:scale-105">
+              <img
+                src="./images/developer.jpg"
+                alt="Fahim Shahir - Creator & Developer of SEU Adda"
+                className="w-full h-full object-cover object-top"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md whitespace-nowrap flex items-center gap-1">
+              <span>👨‍💻 ক্রিয়েটর & ডেভেলপার</span>
+            </div>
+          </div>
+
+          <h2 id="developer-modal-title" className="text-lg sm:text-xl font-black text-white flex items-center justify-center gap-1.5 mt-1">
+            <span>ফাহিম শাহীর (Fahim Shahir)</span>
+          </h2>
+          <p className="text-xs text-amber-300/90 font-medium mt-0.5">
+            সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর & ডেভেলপার
+          </p>
+          <p className="text-[11px] text-slate-300 mt-2 max-w-xs leading-relaxed">
+            সাউথইস্ট বিশ্ববিদ্যালয়ের প্রাণবন্ত ক্যাম্পাস আড্ডা, গান ও স্মৃতিকে চিরভাস্বর করে রাখার জন্য এই প্ল্যাটফর্মটি তৈরি করা হয়েছে। ☕❤️
+          </p>
+        </div>
+
+        {/* Contact Links Grid */}
+        <div className="space-y-2 mb-5">
+          {/* Email Card */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-800/60 border border-white/10 hover:border-amber-500/40 transition flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">
+                <Mail size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] text-slate-400 font-medium">ইমেইল ঠিকানা</div>
+                <a
+                  href={`mailto:${email}`}
+                  className="text-xs font-semibold text-slate-100 hover:text-amber-300 transition truncate block"
+                  title="ইমেইল পাঠাতে ক্লিক করুন"
+                >
+                  {email}
+                </a>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleCopy(email, 'email')}
+              className="p-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0 cursor-pointer flex items-center gap-1 text-[10px]"
+              title="ইমেইল কপি করুন"
+            >
+              {copiedField === 'email' ? (
+                <>
+                  <Check size={13} className="text-emerald-400" />
+                  <span className="text-emerald-400 font-bold">কপি হয়েছে</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={13} />
+                  <span>কপি</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* WhatsApp Card */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-800/60 border border-white/10 hover:border-emerald-500/40 transition flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
+                <MessageCircle size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] text-slate-400 font-medium">হোয়াটসঅ্যাপ (WhatsApp)</div>
+                <div className="text-xs font-semibold text-slate-100 truncate">
+                  {whatsappNumber}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleCopy(whatsappNumber, 'whatsapp')}
+                className="p-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer text-[10px] flex items-center gap-1"
+                title="নম্বর কপি করুন"
+              >
+                {copiedField === 'whatsapp' ? (
+                  <Check size={13} className="text-emerald-400" />
+                ) : (
+                  <Copy size={13} />
+                )}
+              </button>
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] transition flex items-center gap-1 shadow-md shadow-emerald-600/20 cursor-pointer"
+              >
+                <span>মেসেজ</span>
+                <ExternalLink size={11} />
+              </a>
+            </div>
+          </div>
+
+          {/* Facebook Card */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-800/60 border border-white/10 hover:border-blue-500/40 transition flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
+                <ExternalLink size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] text-slate-400 font-medium">ফেসবুক প্রোফাইল</div>
+                <div className="text-xs font-semibold text-slate-100 truncate">
+                  facebook.com/profile...
+                </div>
+              </div>
+            </div>
+            <a
+              href={facebookUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition flex items-center gap-1 shadow-md shadow-blue-600/20 shrink-0 cursor-pointer"
+            >
+              <span>ভিজিট করুন</span>
+              <ExternalLink size={11} />
+            </a>
+          </div>
+        </div>
+
+        {/* 2. Featured: Alumni Corner & Coffee Fund Card (bKash Support — SECOND below Developer info!) */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#E2136E]/20 via-purple-950/30 to-amber-950/25 border-2 border-[#E2136E]/50 p-3.5 sm:p-4 mb-4 shadow-xl shadow-[#E2136E]/15">
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-pink-300">
               <GraduationCap size={17} className="text-[#E2136E]" />
@@ -201,137 +332,6 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({ isOpen, onClose 
                 <span className="font-bold text-emerald-400">২০০৳+</span>
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Profile Avatar & Intro */}
-        <div className="flex flex-col items-center text-center mb-5 border-t border-white/10 pt-4">
-          <div className="relative mb-3 group">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden border-2 border-amber-500/60 shadow-xl shadow-amber-500/20 bg-slate-800 transition-transform duration-300 group-hover:scale-105">
-              <img
-                src="./images/developer.jpg"
-                alt="Fahim Shahir - Creator & Developer of SEU Adda"
-                className="w-full h-full object-cover object-top"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            </div>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md whitespace-nowrap flex items-center gap-1">
-              <span>👨‍💻 ক্রিয়েটর & ডেভেলপার</span>
-            </div>
-          </div>
-
-          <h2 id="developer-modal-title" className="text-lg sm:text-xl font-black text-white flex items-center justify-center gap-1.5 mt-1">
-            <span>ফাহিম শাহীর (Fahim Shahir)</span>
-          </h2>
-          <p className="text-xs text-amber-300/90 font-medium mt-0.5">
-            সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর & ডেভেলপার
-          </p>
-          <p className="text-[11px] text-slate-400 mt-2 max-w-xs leading-relaxed">
-            সাউথইস্ট বিশ্ববিদ্যালয়ের প্রাণবন্ত ক্যাম্পাস আড্ডা, গান ও স্মৃতিকে চিরভাস্বর করে রাখার জন্য এই প্ল্যাটফর্মটি তৈরি করা হয়েছে। ☕❤️
-          </p>
-        </div>
-
-        {/* Contact Links Grid */}
-        <div className="space-y-2.5 mb-5">
-          {/* Email Card */}
-          <div className="p-3 rounded-2xl bg-slate-800/60 border border-white/10 hover:border-amber-500/40 transition flex items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">
-                <Mail size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] text-slate-400 font-medium">ইমেইল ঠিকানা</div>
-                <a
-                  href={`mailto:${email}`}
-                  className="text-xs font-semibold text-slate-100 hover:text-amber-300 transition truncate block"
-                  title="ইমেইল পাঠাতে ক্লিক করুন"
-                >
-                  {email}
-                </a>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleCopy(email, 'email')}
-              className="p-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0 cursor-pointer flex items-center gap-1 text-[10px]"
-              title="ইমেইল কপি করুন"
-            >
-              {copiedField === 'email' ? (
-                <>
-                  <Check size={13} className="text-emerald-400" />
-                  <span className="text-emerald-400 font-bold">কপি হয়েছে</span>
-                </>
-              ) : (
-                <>
-                  <Copy size={13} />
-                  <span>কপি</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* WhatsApp Card */}
-          <div className="p-3 rounded-2xl bg-slate-800/60 border border-white/10 hover:border-emerald-500/40 transition flex items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
-                <MessageCircle size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] text-slate-400 font-medium">হোয়াটসঅ্যাপ (WhatsApp)</div>
-                <div className="text-xs font-semibold text-slate-100 truncate">
-                  {whatsappNumber}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleCopy(whatsappNumber, 'whatsapp')}
-                className="p-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer text-[10px] flex items-center gap-1"
-                title="নম্বর কপি করুন"
-              >
-                {copiedField === 'whatsapp' ? (
-                  <Check size={13} className="text-emerald-400" />
-                ) : (
-                  <Copy size={13} />
-                )}
-              </button>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] transition flex items-center gap-1 shadow-md shadow-emerald-600/20 cursor-pointer"
-              >
-                <span>মেসেজ</span>
-                <ExternalLink size={11} />
-              </a>
-            </div>
-          </div>
-
-          {/* Facebook Card */}
-          <div className="p-3 rounded-2xl bg-slate-800/60 border border-white/10 hover:border-blue-500/40 transition flex items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
-                <ExternalLink size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] text-slate-400 font-medium">ফেসবুক প্রোফাইল</div>
-                <div className="text-xs font-semibold text-slate-100 truncate">
-                  facebook.com/profile...
-                </div>
-              </div>
-            </div>
-            <a
-              href={facebookUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition flex items-center gap-1 shadow-md shadow-blue-600/20 shrink-0 cursor-pointer"
-            >
-              <span>ভিজিট করুন</span>
-              <ExternalLink size={11} />
-            </a>
           </div>
         </div>
 
