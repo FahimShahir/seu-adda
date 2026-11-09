@@ -16,6 +16,7 @@ export interface PlayerState {
   currentIndex: number;
   totalTracks: number;
   statusText: string;
+  videoId?: string;
 }
 
 export interface ParsedYouTubeSource {
@@ -115,8 +116,17 @@ export function parseYouTubeSource(input: string): ParsedYouTubeSource | null {
   return null;
 }
 
-export function useYouTubePlayer(initialPlaylistId: string) {
+export function useYouTubePlayer(
+  initialPlaylistId: string,
+  onTrackChange?: (videoData: { id: string; title: string; author: string }) => void
+) {
   const [playlistId, setPlaylistId] = useState(initialPlaylistId);
+  const onTrackChangeRef = useRef(onTrackChange);
+  useEffect(() => {
+    onTrackChangeRef.current = onTrackChange;
+  }, [onTrackChange]);
+
+  const lastReportedVideoIdRef = useRef<string>('');
   const [playerState, setPlayerState] = useState<PlayerState>({
     isPlaying: false,
     isReady: false,
@@ -240,16 +250,25 @@ export function useYouTubePlayer(initialPlaylistId: string) {
                 const videoData = event.target.getVideoData();
                 const currentIndex = event.target.getPlaylistIndex();
                 const playlist = event.target.getPlaylist();
+                const vId = videoData?.video_id || '';
+                const vTitle = videoData?.title || 'বাংলা ক্যাম্পাস ক্লাসিক গান';
+                const vAuthor = videoData?.author || 'SEU Adda Radio';
                 
                 setPlayerState(prev => ({
                   ...prev,
                   isPlaying: true,
-                  currentTitle: videoData?.title || 'বাংলা ক্যাম্পাস ক্লাসিক গান',
-                  currentAuthor: videoData?.author || 'SEU Adda Radio',
+                  currentTitle: vTitle,
+                  currentAuthor: vAuthor,
                   currentIndex: typeof currentIndex === 'number' ? currentIndex : prev.currentIndex,
                   totalTracks: Array.isArray(playlist) ? playlist.length : prev.totalTracks,
-                  statusText: 'গান বাজছে 🎶'
+                  statusText: 'গান বাজছে 🎶',
+                  videoId: vId
                 }));
+
+                if (vId && vId !== lastReportedVideoIdRef.current) {
+                  lastReportedVideoIdRef.current = vId;
+                  onTrackChangeRef.current?.({ id: vId, title: vTitle, author: vAuthor });
+                }
               } catch (e) {
                 // fallback
               }

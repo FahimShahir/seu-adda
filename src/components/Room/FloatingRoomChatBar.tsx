@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, X, Camera, ChevronUp, Lock, MessageSquare } from 'lucide-react';
 import { CAMPUS_CHARACTERS, CampusCharacter, CampusZone, RoomParticipant } from '../../types/room';
 
@@ -34,7 +34,26 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   const [activeZone, setActiveZone] = useState<CampusZone>('foreground');
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all');
   const [warningToast, setWarningToast] = useState<string>('');
+  const [keyboardOffset, setKeyboardOffset] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Dynamic mobile virtual keyboard adjustment
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleViewportChange = () => {
+      const offset = window.innerHeight - vv.height;
+      setKeyboardOffset(offset > 45 ? offset : 0);
+    };
+
+    vv.addEventListener('resize', handleViewportChange);
+    vv.addEventListener('scroll', handleViewportChange);
+    return () => {
+      vv.removeEventListener('resize', handleViewportChange);
+      vv.removeEventListener('scroll', handleViewportChange);
+    };
+  }, []);
 
   const currentCharacter =
     CAMPUS_CHARACTERS.find((c) => c.id === myCharacterId) || CAMPUS_CHARACTERS[0];
@@ -44,10 +63,13 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
     if (!text.trim()) return;
     onSendMessage(text.trim());
     setText('');
+    // Keep focus so user can rapidly continue chatting without mobile keyboard hiding
+    inputRef.current?.focus();
   };
 
   const handleEmojiClick = (emoji: string) => {
     onSendMessage(emoji);
+    inputRef.current?.focus();
   };
 
   const handleSelectCharacter = (char: CampusCharacter) => {
@@ -76,11 +98,17 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   };
 
   return (
-    <div className="absolute bottom-16 sm:bottom-20 left-2 sm:left-4 right-2 sm:right-4 z-40 select-none">
+    <div
+      style={{
+        transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined,
+        transition: 'transform 0.15s ease-out'
+      }}
+      className="absolute bottom-16 sm:bottom-20 left-2 sm:left-4 right-2 sm:right-4 z-40 select-none pointer-events-auto"
+    >
       
       {/* Popover Character Switcher (Categorized into 3 Zones & Gender Filters with Exclusive Locking) */}
       {isPickerOpen && (
-        <div className="mb-2 bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-xl animate-fadeIn text-slate-100 max-h-[350px] flex flex-col">
+        <div className="mb-2 bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-xl animate-fadeIn text-slate-100 max-h-[50vh] sm:max-h-[350px] overflow-y-auto overscroll-contain flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
             <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
@@ -280,14 +308,18 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
             onChange={(e) => setText(e.target.value)}
             maxLength={150}
             placeholder={`"${currentCharacter.name}" হিসেবে বার্তা লিখুন...`}
-            className="flex-1 bg-slate-900/95 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none transition"
+            autoComplete="off"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            enterKeyHint="send"
+            className="flex-1 bg-slate-900/95 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-base sm:text-sm text-slate-100 placeholder-slate-500 outline-none transition"
           />
 
           <button
             type="submit"
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center transition active:scale-95 shadow-md shadow-amber-500/25 shrink-0"
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm flex items-center justify-center transition active:scale-95 shadow-md shadow-amber-500/25 shrink-0 cursor-pointer"
           >
-            <Send size={14} />
+            <Send size={15} />
           </button>
         </form>
 

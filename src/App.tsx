@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { useAmbientAudio } from './hooks/useAmbientAudio';
@@ -15,6 +15,7 @@ import { PrivateRoomModal } from './components/Room/PrivateRoomModal';
 import { FloatingRoomChatBar } from './components/Room/FloatingRoomChatBar';
 import { useAddaRoom } from './hooks/useAddaRoom';
 import { AddaMood } from './data/dialogues';
+import { CAMPUS_PLAYLISTS } from './data/playlists';
 
 export function App() {
   const [isNight, setIsNight] = useState(false);
@@ -30,19 +31,8 @@ export function App() {
   const [activeQuote, setActiveQuote] = useState<{ speaker: string; text: string } | undefined>(undefined);
   const [hasAutoSynced, setHasAutoSynced] = useState(false);
 
-  // Audio & Player Hooks
-  const {
-    containerRef,
-    playerState,
-    togglePlay,
-    play,
-    nextTrack,
-    prevTrack,
-    setVolume,
-    changePlaylist,
-    playCustomSource,
-    playlistId
-  } = useYouTubePlayer('yYKHuW_FS_U');
+  const isRemoteSyncRef = useRef(false);
+  const activeRoomRef = useRef<any>(null);
 
   // Private Adda Room Hook (2-hour ephemeral rooms with sync music & chat)
   const {
@@ -59,8 +49,44 @@ export function App() {
     sendChatMessage,
     setRoomSong
   } = useAddaRoom((source) => {
+    isRemoteSyncRef.current = true;
     playCustomSource(source);
   });
+
+  useEffect(() => {
+    activeRoomRef.current = activeRoom;
+  }, [activeRoom]);
+
+  // Audio & Player Hooks with Real-Time Room Sync
+  const {
+    containerRef,
+    playerState,
+    togglePlay,
+    play,
+    nextTrack,
+    prevTrack,
+    setVolume,
+    changePlaylist,
+    playCustomSource,
+    playlistId
+  } = useYouTubePlayer('yYKHuW_FS_U', (videoData) => {
+    if (isRemoteSyncRef.current) {
+      isRemoteSyncRef.current = false;
+      return;
+    }
+    // If in an active room, broadcast locally started video to all participants
+    if (activeRoomRef.current) {
+      setRoomSong(videoData.title, videoData.author, videoData.id);
+    }
+  });
+
+  // Auto-sync room song when joining an active room with an ongoing track
+  useEffect(() => {
+    if (activeRoom?.currentSong?.source && playerState.videoId !== activeRoom.currentSong.source) {
+      isRemoteSyncRef.current = true;
+      playCustomSource(activeRoom.currentSong.source);
+    }
+  }, [activeRoom?.id, activeRoom?.currentSong?.source]);
 
   // Check URL query params for ?room=SEU-XXXX
   useEffect(() => {
@@ -231,6 +257,7 @@ export function App() {
           playerState={playerState}
           isNight={isNight}
           isRain={isRain}
+          isRoomActive={Boolean(activeRoom)}
           onTogglePlay={togglePlay}
           onNext={nextTrack}
           onPrev={prevTrack}
@@ -240,34 +267,46 @@ export function App() {
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
         />
 
-        {/* Single Clean Developer & Coffee Treat Pill at Bottom (No bKash tag on home screen) */}
-        <div className="absolute bottom-16 sm:bottom-16 left-3 sm:left-4 z-30 pointer-events-auto">
-          <button
-            type="button"
-            onClick={() => setIsDeveloperOpen(true)}
-            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-amber-500/40 hover:border-amber-400 text-slate-200 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-black/40 transition active:scale-95 cursor-pointer"
-            title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর — ফাহিম শাহীর"
-          >
-            <span className="text-sm">☕</span>
-            <span className="text-slate-300">
-              <span className="hidden sm:inline">Crafted with ❤️ by </span>
-              <strong className="text-amber-400 group-hover:underline">Fahim Shahir</strong>
-              <span> • </span>
-              <span className="text-pink-300 font-bold">কফি ট্রিট</span>
-            </span>
-          </button>
-        </div>
+        {/* Single Clean Developer & Coffee Treat Pill at Bottom (Hidden while in room to free up mobile space) */}
+        {!activeRoom && (
+          <div className="absolute bottom-16 sm:bottom-16 left-3 sm:left-4 z-30 pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => setIsDeveloperOpen(true)}
+              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-amber-500/40 hover:border-amber-400 text-slate-200 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-black/40 transition active:scale-95 cursor-pointer"
+              title="সাউথইস্ট বিশ্ববিদ্যালয় আড্ডাখানা ক্রিয়েটর — ফাহিম শাহীর"
+            >
+              <span className="text-sm">☕</span>
+              <span className="text-slate-300">
+                <span className="hidden sm:inline">Crafted with ❤️ by </span>
+                <strong className="text-amber-400 group-hover:underline">Fahim Shahir</strong>
+                <span> • </span>
+                <span className="text-pink-300 font-bold">কফি ট্রিট</span>
+              </span>
+            </button>
+          </div>
+        )}
       </main>
 
-      {/* Playlist Selector & Custom Song Modal */}
+      {/* Playlist Selector & Custom Song Modal with Room Broadcast */}
       <PlaylistModal
         isOpen={isPlaylistOpen}
         activePlaylistId={playlistId}
         onSelectPlaylist={(id) => {
           changePlaylist(id);
           play();
+          if (activeRoom) {
+            const pl = CAMPUS_PLAYLISTS.find((p) => p.id === id);
+            setRoomSong(pl?.name || 'ক্যাম্পাস প্লেলিস্ট', 'SEU Adda রেডিও', id);
+          }
         }}
-        onPlayCustomSource={playCustomSource}
+        onPlayCustomSource={(source) => {
+          const success = playCustomSource(source);
+          if (success && activeRoom) {
+            setRoomSong('ক্যাম্পাস পছন্দের গান', currentUser.name || 'বন্ধু', source);
+          }
+          return Boolean(success);
+        }}
         onClose={() => setIsPlaylistOpen(false)}
       />
 
