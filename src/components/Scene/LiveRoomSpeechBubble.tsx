@@ -56,9 +56,13 @@ export const LiveRoomSpeechBubble: React.FC<LiveRoomSpeechBubbleProps> = ({
     pointerStyle.transform = 'translateX(-50%)';
   }
 
+  const isDrifting = Boolean(bubble.isDrifting);
+
   return (
     <div
-      className={`absolute z-30 pointer-events-auto transition-all animate-pop max-w-[88%] ${widthClass} ${scaleClass}`}
+      className={`absolute z-30 transition-all max-w-[88%] ${widthClass} ${scaleClass} ${
+        isDrifting ? 'animate-windDrift pointer-events-none' : 'pointer-events-auto animate-pop'
+      }`}
       style={{
         bottom: `${bottomOffset}%`,
         ...horizontalStyle,

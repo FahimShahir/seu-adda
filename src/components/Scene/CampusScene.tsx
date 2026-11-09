@@ -17,8 +17,9 @@ interface CampusSceneProps {
   onGuitarStrum: () => void;
   onTeaClink: () => void;
   onActiveQuoteChange?: (quote: { speaker: string; text: string }) => void;
-  activeSpeechBubbles?: Record<string, ActiveSpeechBubble>;
+  activeSpeechBubbles?: ActiveSpeechBubble[] | Record<string, ActiveSpeechBubble>;
   roomParticipants?: RoomParticipant[];
+  isRoomActive?: boolean;
   currentUserId?: string;
   onTransferCharacter?: (charId: string) => void;
   onCapturePhotoCard?: (speaker: string, text: string) => void;
@@ -36,6 +37,7 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   onActiveQuoteChange,
   activeSpeechBubbles,
   roomParticipants,
+  isRoomActive: isRoomActiveProp,
   currentUserId,
   onTransferCharacter,
   onCapturePhotoCard
@@ -43,7 +45,9 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
   const [conversation, setConversation] = useState<DialogueLine[]>([]);
 
-  // Auto-dismiss active bubble after 10 seconds
+  const isRoomActive = isRoomActiveProp ?? Boolean(roomParticipants && roomParticipants.length > 0);
+
+  // Auto-dismiss active bubble after 10 seconds (for regular non-room mode)
   useEffect(() => {
     if (!activeHotspot) return;
     const timer = setTimeout(() => {
@@ -53,7 +57,29 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
   }, [activeHotspot]);
 
   const handleHotspotClick = (hotspot: Hotspot) => {
-    // Pick dialogue based on currentMood
+    // If inside an active room: NEVER trigger static offline campus adda dialogues
+    if (isRoomActive) {
+      if (onTransferCharacter && CAMPUS_CHARACTERS.some((c) => c.id === hotspot.id)) {
+        onTransferCharacter(hotspot.id);
+      }
+      if (hotspot.actionType === 'music') {
+        onGuitarStrum();
+        onTogglePlay();
+      } else if (hotspot.actionType === 'cheers') {
+        onTeaClink();
+        confetti({
+          particleCount: 30,
+          spread: 60,
+          origin: { y: 0.78, x: 0.5 },
+          colors: ['#D97706', '#F59E0B', '#B45309', '#FDE68A']
+        });
+      } else if (hotspot.actionType === 'lamp') {
+        onToggleNight();
+      }
+      return;
+    }
+
+    // Pick dialogue based on currentMood for normal non-room mode
     const moodDialogues = hotspot.dialogues[currentMood]?.length
       ? hotspot.dialogues[currentMood]
       : hotspot.dialogues.general;
@@ -91,6 +117,12 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
       onToggleNight();
     }
   };
+
+  const bubblesList: ActiveSpeechBubble[] = Array.isArray(activeSpeechBubbles)
+    ? activeSpeechBubbles
+    : activeSpeechBubbles
+    ? Object.values(activeSpeechBubbles)
+    : [];
 
   return (
     <div className="absolute inset-0 w-full h-full select-none overflow-hidden touch-manipulation">
@@ -239,25 +271,24 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
         })}
 
         {/* Render Active Room Speech Bubbles Floating Over Respective Artwork Characters */}
-        {activeSpeechBubbles &&
-          Object.values(activeSpeechBubbles).map((bubble) => {
-            const charHotspot = CAMPUS_HOTSPOTS.find((h) => h.id === bubble.characterId);
-            if (!charHotspot) return null;
-            return (
-              <LiveRoomSpeechBubble
-                key={bubble.id}
-                bubble={bubble}
-                x={charHotspot.x}
-                y={charHotspot.y}
-                zone={charHotspot.zone}
-                isMine={bubble.senderName === roomParticipants?.find((p) => p.id === currentUserId)?.name}
-                onCapturePhotoCard={onCapturePhotoCard}
-              />
-            );
-          })}
+        {bubblesList.map((bubble) => {
+          const charHotspot = CAMPUS_HOTSPOTS.find((h) => h.id === bubble.characterId);
+          if (!charHotspot) return null;
+          return (
+            <LiveRoomSpeechBubble
+              key={bubble.id}
+              bubble={bubble}
+              x={charHotspot.x}
+              y={charHotspot.y}
+              zone={charHotspot.zone}
+              isMine={bubble.senderName === roomParticipants?.find((p) => p.id === currentUserId)?.name}
+              onCapturePhotoCard={onCapturePhotoCard}
+            />
+          );
+        })}
 
-        {/* Render Regular Non-Room Hotspot Dialogues */}
-        {activeHotspot && !activeSpeechBubbles?.[activeHotspot.id] && (
+        {/* Render Regular Non-Room Hotspot Dialogues ONLY when NOT in an active room */}
+        {!isRoomActive && activeHotspot && (
           <CharacterBubble
             hotspot={activeHotspot}
             conversation={conversation}

@@ -90,8 +90,8 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
   const [roomError, setRoomError] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Active floating speech bubbles map: characterId -> ActiveSpeechBubble
-  const [activeSpeechBubbles, setActiveSpeechBubbles] = useState<Record<string, ActiveSpeechBubble>>({});
+  // Active floating speech bubbles list (supports wind drifting transitions)
+  const [activeSpeechBubbles, setActiveSpeechBubbles] = useState<ActiveSpeechBubble[]>([]);
   
   // Latest speech for Photo Card auto-prefill
   const [latestSpeech, setLatestSpeech] = useState<{ speaker: string; text: string } | null>(null);
@@ -151,25 +151,38 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     });
   }, []);
 
-  // Show a speech bubble over a specific character
+  // Show a speech bubble over a specific character (30 seconds lifetime with gentle wind-drift on replacement)
   const triggerSpeechBubble = useCallback((msg: ChatMessage) => {
     if (!msg.characterId || msg.isSystem) return;
 
-    const expiresAt = Date.now() + 10000; // 10 seconds duration
-    const bubble: ActiveSpeechBubble = {
+    const expiresAt = Date.now() + 30000; // 30 seconds duration
+    const newBubble: ActiveSpeechBubble = {
       id: msg.id,
       characterId: msg.characterId,
       senderName: msg.senderName,
       senderDept: msg.senderDept,
       text: msg.text,
       timestamp: msg.timestamp,
-      expiresAt
+      expiresAt,
+      isDrifting: false
     };
 
-    setActiveSpeechBubbles((prev) => ({
-      ...prev,
-      [msg.characterId]: bubble
-    }));
+    setActiveSpeechBubbles((prev) => {
+      // If there are existing bubbles for this character, mark them as isDrifting: true
+      // and let them drift off in the breeze for 2.8s before removal
+      const updated = prev.map((b) => {
+        if (b.characterId === msg.characterId && !b.isDrifting) {
+          return {
+            ...b,
+            isDrifting: true,
+            expiresAt: Math.min(b.expiresAt, Date.now() + 2800)
+          };
+        }
+        return b;
+      });
+
+      return [...updated, newBubble];
+    });
 
     setLatestSpeech({
       speaker: `${msg.senderName}${msg.senderDept ? ` (${msg.senderDept})` : ''}`,
@@ -189,7 +202,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       if (event.type === 'ROOM_DESTROYED') {
         if (current && current.id === event.roomId) {
           setActiveRoom(null);
-          setActiveSpeechBubbles({});
+          setActiveSpeechBubbles([]);
           setRoomError('⚠️ রুমে আর কেউ না থাকায় বা মেয়াদ শেষ হওয়ায় রুমটি মুছে গেছে।');
           try {
             localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${event.roomId}`);
@@ -393,23 +406,31 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     };
   }, [activeRoom?.id, currentUser.id, handleIncomingEvent]);
 
-  // Speech Bubble Cleanup Timer (every 1 second)
+  // Speech Bubble Cleanup & Wind Drift Transition Timer (every 500ms)
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setActiveSpeechBubbles((prev) => {
+        if (!prev.length) return prev;
         let changed = false;
-        const next: Record<string, ActiveSpeechBubble> = {};
-        for (const [charId, bubble] of Object.entries(prev)) {
-          if (now < bubble.expiresAt) {
-            next[charId] = bubble;
-          } else {
+        const next: ActiveSpeechBubble[] = [];
+
+        for (const bubble of prev) {
+          if (now >= bubble.expiresAt) {
+            // Completely expired, remove
             changed = true;
+          } else if (!bubble.isDrifting && bubble.expiresAt - now <= 2800) {
+            // Reaching end of 30-second lifetime: catch the wind and float away
+            changed = true;
+            next.push({ ...bubble, isDrifting: true });
+          } else {
+            next.push(bubble);
           }
         }
+
         return changed ? next : prev;
       });
-    }, 1000);
+    }, 500);
 
     return () => clearInterval(interval);
   }, []);
@@ -435,7 +456,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           timestamp: now
         });
         setActiveRoom(null);
-        setActiveSpeechBubbles({});
+        setActiveSpeechBubbles([]);
         setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়েছে! রুমটি স্বয়ংক্রিয়ভাবে বন্ধ করা হয়েছে।');
         try {
           localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${current.id}`);
@@ -783,7 +804,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
     }
 
     setActiveRoom(null);
-    setActiveSpeechBubbles({});
+    setActiveSpeechBubbles([]);
     try {
       window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {}

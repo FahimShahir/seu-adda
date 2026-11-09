@@ -42,6 +42,12 @@ export default {
         pulseGlow: {
           '0%, 100%': { filter: 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.6))' },
           '50%': { filter: 'drop-shadow(0 0 18px rgba(255, 215, 0, 0.9))' },
+        },
+        windDrift: {
+          '0%': { transform: 'translateY(0) translateX(0) rotate(0deg) scale(1)', opacity: '0.96' },
+          '30%': { transform: 'translateY(-35px) translateX(14px) rotate(3deg) scale(0.92)', opacity: '0.8' },
+          '70%': { transform: 'translateY(-85px) translateX(28px) rotate(-4deg) scale(0.8)', opacity: '0.4' },
+          '100%': { transform: 'translateY(-145px) translateX(45px) rotate(6deg) scale(0.68)', opacity: '0' },
         }
       },
       animation: {
@@ -50,6 +56,7 @@ export default {
         flicker: 'flicker 4s infinite ease-in-out',
         floatNote: 'floatNote 2.5s infinite linear',
         pulseGlow: 'pulseGlow 2s infinite ease-in-out',
+        windDrift: 'windDrift 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards',
       }
     },
   },

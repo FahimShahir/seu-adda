@@ -409,6 +409,7 @@ export interface ActiveSpeechBubble {
   text: string;
   timestamp: string;
   expiresAt: number;
+  isDrifting?: boolean;
 }
 
 export interface RoomParticipant {

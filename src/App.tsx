@@ -25,6 +25,7 @@ export function App() {
   const [isPhotoCardOpen, setIsPhotoCardOpen] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
   const [isRoomOpen, setIsRoomOpen] = useState(false);
+  const [roomModalTab, setRoomModalTab] = useState<'info' | 'history'>('history');
   const [pendingJoinRoomId, setPendingJoinRoomId] = useState('');
   const [activeQuote, setActiveQuote] = useState<{ speaker: string; text: string } | undefined>(undefined);
   const [hasAutoSynced, setHasAutoSynced] = useState(false);
@@ -171,6 +172,7 @@ export function App() {
           onActiveQuoteChange={setActiveQuote}
           activeSpeechBubbles={activeSpeechBubbles}
           roomParticipants={activeRoom?.participants}
+          isRoomActive={Boolean(activeRoom)}
           currentUserId={currentUser.id}
           onTransferCharacter={transferCharacter}
           onCapturePhotoCard={(speaker, text) => {
@@ -192,7 +194,10 @@ export function App() {
             if (latestSpeech) setActiveQuote(latestSpeech);
             setIsPhotoCardOpen(true);
           }}
-          onOpenRoom={() => setIsRoomOpen(true)}
+          onOpenRoom={() => {
+            setRoomModalTab('history');
+            setIsRoomOpen(true);
+          }}
           onCheers={handleCheers}
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
           onOpenDeveloper={() => setIsDeveloperOpen(true)}
@@ -203,11 +208,16 @@ export function App() {
           <FloatingRoomChatBar
             myCharacterId={currentUser.characterId}
             participants={activeRoom.participants}
+            messageCount={activeRoom.messages.length}
             onSendMessage={sendChatMessage}
             onTransferCharacter={transferCharacter}
             onOpenPhotoCard={() => {
               if (latestSpeech) setActiveQuote(latestSpeech);
               setIsPhotoCardOpen(true);
+            }}
+            onOpenHistory={() => {
+              setRoomModalTab('history');
+              setIsRoomOpen(true);
             }}
           />
         )}
@@ -287,6 +297,7 @@ export function App() {
         onLeaveRoom={leaveRoom}
         onSetRoomSong={setRoomSong}
         initialRoomId={pendingJoinRoomId}
+        initialViewTab={roomModalTab}
       />
     </div>
   );

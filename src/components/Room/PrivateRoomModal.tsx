@@ -10,7 +10,8 @@ import {
   LogOut,
   Radio,
   Plus,
-  Play
+  Play,
+  MessageSquare
 } from 'lucide-react';
 import { AddaRoom, CAMPUS_CHARACTERS, CampusZone } from '../../types/room';
 
@@ -38,6 +39,7 @@ interface PrivateRoomModalProps {
   onLeaveRoom: () => void;
   onSetRoomSong: (title: string, author: string, source: string) => void;
   initialRoomId?: string;
+  initialViewTab?: 'info' | 'history';
 }
 
 const DEPARTMENTS = ['CSE', 'BBA', 'EEE', 'English', 'Pharmacy', 'Law'];
@@ -53,9 +55,17 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
   onJoinRoom,
   onLeaveRoom,
   onSetRoomSong,
-  initialRoomId = ''
+  initialRoomId = '',
+  initialViewTab = 'history'
 }) => {
   const [tab, setTab] = useState<'create' | 'join'>(initialRoomId ? 'join' : 'create');
+  const [roomSubTab, setRoomSubTab] = useState<'info' | 'history'>(initialViewTab);
+
+  useEffect(() => {
+    if (initialViewTab) {
+      setRoomSubTab(initialViewTab);
+    }
+  }, [initialViewTab, isOpen]);
 
   // Form states
   const [userName, setUserName] = useState(currentUser.name || '');
@@ -562,118 +572,233 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
           </div>
         ) : (
           /* VIEW 2: ACTIVE ROOM INFO & CONTROLS */
-          <div className="flex-1 flex flex-col gap-3">
+          <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-3">
             
-            {/* Quick Action Button: Return to Main Screen Hangout */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition active:scale-98"
-            >
-              <Play size={16} />
-              <span>মূল স্ক্রিনে আড্ডা ও চ্যাট করুন ☕</span>
-            </button>
-
-            {/* Room ID & Invite Link */}
-            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 p-3 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopyId}
-                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs px-3 py-1.5 rounded-xl border border-amber-500/30 font-mono transition"
-                  title="রুম আইডি কপি করুন"
-                >
-                  {isCopiedId ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                  <span>{activeRoom.id}</span>
-                </button>
-
-                <button
-                  onClick={handleShareRoom}
-                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-xl border border-white/10 transition"
-                  title="বন্ধুদের সাথে লিংক শেয়ার করুন"
-                >
-                  {isCopiedLink ? <Check size={13} className="text-emerald-400" /> : <Share2 size={13} className="text-blue-400" />}
-                  <span>{isCopiedLink ? 'কপি হয়েছে!' : 'ইনভাইট লিংক'}</span>
-                </button>
-              </div>
-
+            {/* Sub-Tab Navigation: Chat History vs Room Info/Song */}
+            <div className="flex bg-slate-950/80 p-1 rounded-2xl border border-white/5 gap-1 shrink-0">
               <button
-                onClick={onLeaveRoom}
-                className="flex items-center gap-1 text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 text-xs px-3 py-1.5 rounded-xl border border-rose-500/30 transition"
+                type="button"
+                onClick={() => setRoomSubTab('history')}
+                className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1.5 ${
+                  roomSubTab === 'history'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <LogOut size={13} />
-                <span>রুম ত্যাগ</span>
+                <MessageSquare size={14} />
+                <span>📜 চ্যাট হিস্ট্রি</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    roomSubTab === 'history' ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-amber-300'
+                  }`}
+                >
+                  {activeRoom.messages.length}
+                </span>
               </button>
-            </div>
-
-            {/* Synchronized Radio Track & Change Song */}
-            <div className="bg-slate-950/85 p-3 rounded-2xl border border-amber-500/25 flex items-center justify-between gap-2 shadow-inner">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                  <Radio size={16} className="animate-pulse" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] text-amber-400/80 font-medium">রুম রেডিও গান 🎶</div>
-                  <div className="text-xs font-semibold text-slate-100 truncate">
-                    {activeRoom.currentSong ? activeRoom.currentSong.title : 'ক্যাম্পাস আড্ডা রেডিও বাজছে'}
-                  </div>
-                </div>
-              </div>
 
               <button
                 type="button"
-                onClick={() => setIsAddingSong(!isAddingSong)}
-                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-2.5 py-1.5 rounded-xl font-bold shrink-0 transition"
+                onClick={() => setRoomSubTab('info')}
+                className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1.5 ${
+                  roomSubTab === 'info'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <Plus size={13} />
-                <span>গান বদলান</span>
+                <Users size={14} />
+                <span>👥 মেম্বার ও গান</span>
               </button>
             </div>
 
-            {/* Song URL Form */}
-            {isAddingSong && (
-              <form onSubmit={handleAddSongSubmit} className="flex gap-2 p-2 bg-slate-950/90 rounded-2xl border border-amber-500/40 animate-fadeIn">
-                <input
-                  type="text"
-                  value={songUrlInput}
-                  onChange={(e) => setSongUrlInput(e.target.value)}
-                  placeholder="YouTube গানের লিংক পেস্ট করুন..."
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-amber-500"
-                />
+            {/* SUB-TAB 1: CHAT HISTORY */}
+            {roomSubTab === 'history' && (
+              <div className="flex-1 flex flex-col gap-2 min-h-[300px]">
+                <div className="flex-1 max-h-[350px] overflow-y-auto no-scrollbar flex flex-col gap-2 p-1">
+                  {activeRoom.messages.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-400 my-auto">
+                      <MessageSquare size={36} className="text-amber-500/40 mb-2 animate-bounce" />
+                      <p className="text-xs font-semibold text-slate-300">এখনো কোনো মেসেজ দেওয়া হয়নি</p>
+                      <p className="text-[11px] text-slate-500 mt-1 max-w-[240px]">
+                        নিচের বাটনে ট্যাপ করে মূল স্ক্রিনে ফিরে যান এবং বন্ধুদের সাথে আড্ডা শুরু করুন ☕
+                      </p>
+                    </div>
+                  ) : (
+                    activeRoom.messages.map((msg) => {
+                      const char = CAMPUS_CHARACTERS.find((c) => c.id === msg.characterId);
+                      const isMe = msg.senderId === currentUser.id;
+
+                      if (msg.isSystem) {
+                        return (
+                          <div
+                            key={msg.id}
+                            className="self-center py-1 px-3 rounded-full bg-slate-900/80 border border-white/5 text-[10px] text-amber-400/90 font-medium"
+                          >
+                            🔔 {msg.text}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col max-w-[85%] ${
+                            isMe ? 'self-end items-end' : 'self-start items-start'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1 px-1 mb-0.5 text-[10px] text-slate-400">
+                            <span className="font-semibold text-amber-300">
+                              {char?.emoji} {msg.senderName}
+                            </span>
+                            {msg.senderDept && (
+                              <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-200 text-[9px]">
+                                {msg.senderDept}
+                              </span>
+                            )}
+                            <span className="text-[9px] text-slate-500 ml-1">{msg.timestamp}</span>
+                          </div>
+
+                          <div
+                            className={`p-2.5 rounded-2xl text-xs sm:text-[13px] leading-relaxed shadow-md border ${
+                              isMe
+                                ? 'bg-amber-500/15 border-amber-400/50 text-slate-100 rounded-tr-none'
+                                : 'bg-slate-900/90 border-slate-700 text-slate-200 rounded-tl-none'
+                            }`}
+                          >
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Return to Main Screen */}
                 <button
-                  type="submit"
-                  className="bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs"
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition active:scale-98 mt-1"
                 >
-                  প্লে করুন
+                  <Play size={15} />
+                  <span>মূল স্ক্রিনে আড্ডা ও চ্যাট করুন ☕</span>
                 </button>
-              </form>
+              </div>
             )}
 
-            {/* Members in Room */}
-            <div className="space-y-1.5">
-              <div className="text-xs font-semibold text-slate-400">
-                আড্ডায় আছেন ({activeRoom.participants.length} জন):
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {activeRoom.participants.map((p) => {
-                  const char = CAMPUS_CHARACTERS.find((c) => c.id === p.characterId);
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800 text-xs text-slate-200 border border-white/5"
-                    >
-                      <span>{char?.emoji || '👤'}</span>
-                      <span className="font-semibold text-slate-100">{p.name}</span>
-                      {p.dept && <span className="text-[10px] text-amber-400">({p.dept})</span>}
-                      <span className="text-[9px] text-slate-400">[{char?.name || 'চরিত্র'}]</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {/* SUB-TAB 2: ROOM INFO & CONTROLS */}
+            {roomSubTab === 'info' && (
+              <div className="flex-1 flex flex-col gap-3">
+                {/* Quick Action Button: Return to Main Screen Hangout */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition active:scale-98"
+                >
+                  <Play size={15} />
+                  <span>মূল স্ক্রিনে আড্ডা ও চ্যাট করুন ☕</span>
+                </button>
 
-            <div className="p-2.5 rounded-2xl bg-slate-950/60 border border-white/5 text-[11px] text-slate-400">
-              💡 আপনি যে ক্যারেক্টার নিয়েছেন, স্ক্রিনে মেসেজ পাঠালে তার মাথার উপর স্পিচ বাবল ভেসে উঠবে। যেকোনো সময় ক্যারেক্টার বদলাতে পারবেন।
-            </div>
+                {/* Room ID & Invite Link */}
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 p-3 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCopyId}
+                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs px-3 py-1.5 rounded-xl border border-amber-500/30 font-mono transition"
+                      title="রুম আইডি কপি করুন"
+                    >
+                      {isCopiedId ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                      <span>{activeRoom.id}</span>
+                    </button>
+
+                    <button
+                      onClick={handleShareRoom}
+                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-xl border border-white/10 transition"
+                      title="বন্ধুদের সাথে লিংক শেয়ার করুন"
+                    >
+                      {isCopiedLink ? <Check size={13} className="text-emerald-400" /> : <Share2 size={13} className="text-blue-400" />}
+                      <span>{isCopiedLink ? 'কপি হয়েছে!' : 'ইনভাইট লিংক'}</span>
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={onLeaveRoom}
+                    className="flex items-center gap-1 text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 text-xs px-3 py-1.5 rounded-xl border border-rose-500/30 transition"
+                  >
+                    <LogOut size={13} />
+                    <span>রুম ত্যাগ</span>
+                  </button>
+                </div>
+
+                {/* Synchronized Radio Track & Change Song */}
+                <div className="bg-slate-950/85 p-3 rounded-2xl border border-amber-500/25 flex items-center justify-between gap-2 shadow-inner">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                      <Radio size={16} className="animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] text-amber-400/80 font-medium">রুম রেডিও গান 🎶</div>
+                      <div className="text-xs font-semibold text-slate-100 truncate">
+                        {activeRoom.currentSong ? activeRoom.currentSong.title : 'ক্যাম্পাস আড্ডা রেডিও বাজছে'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingSong(!isAddingSong)}
+                    className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-2.5 py-1.5 rounded-xl font-bold shrink-0 transition"
+                  >
+                    <Plus size={13} />
+                    <span>গান বদলান</span>
+                  </button>
+                </div>
+
+                {/* Song URL Form */}
+                {isAddingSong && (
+                  <form onSubmit={handleAddSongSubmit} className="flex gap-2 p-2 bg-slate-950/90 rounded-2xl border border-amber-500/40 animate-fadeIn">
+                    <input
+                      type="text"
+                      value={songUrlInput}
+                      onChange={(e) => setSongUrlInput(e.target.value)}
+                      placeholder="YouTube গানের লিংক পেস্ট করুন..."
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-amber-500"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs"
+                    >
+                      প্লে করুন
+                    </button>
+                  </form>
+                )}
+
+                {/* Members in Room */}
+                <div className="space-y-1.5">
+                  <div className="text-xs font-semibold text-slate-400">
+                    আড্ডায় আছেন ({activeRoom.participants.length} জন):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeRoom.participants.map((p) => {
+                      const char = CAMPUS_CHARACTERS.find((c) => c.id === p.characterId);
+                      return (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800 text-xs text-slate-200 border border-white/5"
+                        >
+                          <span>{char?.emoji || '👤'}</span>
+                          <span className="font-semibold text-slate-100">{p.name}</span>
+                          {p.dept && <span className="text-[10px] text-amber-400">({p.dept})</span>}
+                          <span className="text-[9px] text-slate-400">[{char?.name || 'চরিত্র'}]</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-2xl bg-slate-950/60 border border-white/5 text-[11px] text-slate-400">
+                  💡 আপনি যে ক্যারেক্টার নিয়েছেন, স্ক্রিনে মেসেজ পাঠালে তার মাথার উপর স্পিচ বাবল ভেসে উঠবে। যেকোনো সময় ক্যারেক্টার বদলাতে পারবেন।
+                </div>
+              </div>
+            )}
 
           </div>
         )}

@@ -1,13 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { Send, X, Camera, ChevronUp, Lock } from 'lucide-react';
+import { Send, X, Camera, ChevronUp, Lock, MessageSquare } from 'lucide-react';
 import { CAMPUS_CHARACTERS, CampusCharacter, CampusZone, RoomParticipant } from '../../types/room';
 
 interface FloatingRoomChatBarProps {
   myCharacterId: string;
   participants: RoomParticipant[];
+  messageCount?: number;
   onSendMessage: (text: string) => void;
   onTransferCharacter: (characterId: string) => void;
   onOpenPhotoCard: () => void;
+  onOpenHistory?: () => void;
 }
 
 const QUICK_EMOJIS = ['☕', '🎸', '💔', '📚', '🔥', '🤣', '🎉'];
@@ -21,9 +23,11 @@ const ZONE_TABS: { id: CampusZone; label: string; count: number }[] = [
 export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
   myCharacterId,
   participants,
+  messageCount,
   onSendMessage,
   onTransferCharacter,
-  onOpenPhotoCard
+  onOpenPhotoCard,
+  onOpenHistory
 }) => {
   const [text, setText] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -247,6 +251,24 @@ export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
             <Camera size={13} />
             <span className="hidden sm:inline">ফটো কার্ড</span>
           </button>
+
+          {/* Quick Chat History Button */}
+          {onOpenHistory && (
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              className="flex items-center gap-1 px-2 py-1 bg-slate-800/90 hover:bg-slate-700 text-amber-300 rounded-xl text-[11px] border border-white/10 shrink-0 transition active:scale-95"
+              title="রুমের সকল চ্যাট হিস্ট্রি দেখুন 📜"
+            >
+              <MessageSquare size={13} />
+              <span className="hidden xs:inline">হিস্ট্রি</span>
+              {messageCount !== undefined && messageCount > 0 && (
+                <span className="text-[9px] px-1 bg-amber-500 text-slate-950 rounded-full font-black">
+                  {messageCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Bottom: Text Input & Send Button */}
