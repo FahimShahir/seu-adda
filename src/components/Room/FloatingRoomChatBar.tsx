@@ -14,8 +14,8 @@ const QUICK_EMOJIS = ['☕', '🎸', '💔', '📚', '🔥', '🤣', '🎉'];
 
 const ZONE_TABS: { id: CampusZone; label: string; count: number }[] = [
   { id: 'foreground', label: '🥇 সামনে', count: 13 },
-  { id: 'midground', label: '🥈 সিঁড়িতে', count: 8 },
-  { id: 'background', label: '🥉 গেটে', count: 14 }
+  { id: 'midground', label: '🥈 সিঁড়িতে', count: 10 },
+  { id: 'background', label: '🥉 গেটে', count: 12 }
 ];
 
 export const FloatingRoomChatBar: React.FC<FloatingRoomChatBarProps> = ({
