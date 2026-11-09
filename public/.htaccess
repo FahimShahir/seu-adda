@@ -33,3 +33,4 @@ AddType image/png .png
     # Route everything else to index.html
     RewriteRule ^ index.html [L]
 </IfModule>
+
