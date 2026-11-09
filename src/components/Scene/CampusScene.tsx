@@ -174,3 +174,4 @@ export const CampusScene: React.FC<CampusSceneProps> = ({
     </div>
   );
 };
+

@@ -78,3 +78,4 @@ export const RainCanvas: React.FC<RainCanvasProps> = ({ enabled }) => {
     />
   );
 };
+

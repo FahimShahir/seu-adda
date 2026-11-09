@@ -125,3 +125,4 @@ export const ConfessionModal: React.FC<ConfessionModalProps> = ({
     </div>
   );
 };
+

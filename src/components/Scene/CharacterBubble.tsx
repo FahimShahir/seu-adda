@@ -63,3 +63,4 @@ export const CharacterBubble: React.FC<CharacterBubbleProps> = ({
     </div>
   );
 };
+
