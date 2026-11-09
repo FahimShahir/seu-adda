@@ -8,7 +8,7 @@ import { CampusScene } from './components/Scene/CampusScene';
 import { PlayerControls } from './components/Audio/PlayerControls';
 import { PlaylistModal } from './components/Audio/PlaylistModal';
 import { ConfessionModal } from './components/Community/ConfessionModal';
-import { Info, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export function App() {
   const [isNight, setIsNight] = useState(false);
@@ -17,18 +17,18 @@ export function App() {
   const [isConfessionOpen, setIsConfessionOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
 
-  // Audio & Player Hooks
+  // Audio Hooks
   const {
     containerRef,
     playerState,
+    currentPlaylist,
     togglePlay,
     play,
     nextTrack,
     prevTrack,
     setVolume,
-    changePlaylist,
-    playlistId
-  } = useYouTubePlayer('PLOPZkRWRrUEk');
+    changePlaylist
+  } = useYouTubePlayer();
 
   const {
     isAmbientOn,
@@ -44,7 +44,6 @@ export function App() {
     likeConfession
   } = usePresenceAndConfessions();
 
-  // Synchronize rain state with ambient rain sound
   const handleToggleRain = () => {
     const nextRain = !isRain;
     setIsRain(nextRain);
@@ -58,14 +57,13 @@ export function App() {
     confetti({
       particleCount: 35,
       spread: 70,
-      origin: { y: 0.6, x: 0.5 },
+      origin: { y: 0.65, x: 0.5 },
       colors: ['#F59E0B', '#D97706', '#FEF3C7', '#B45309']
     });
   };
 
-  // Dismiss guide toast after 10s
   useEffect(() => {
-    const t = setTimeout(() => setShowGuide(false), 10000);
+    const t = setTimeout(() => setShowGuide(false), 9000);
     return () => clearTimeout(t);
   }, []);
 
@@ -73,14 +71,14 @@ export function App() {
     <div className={`min-h-screen flex flex-col transition-colors duration-1000 ${
       isNight ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'
     }`}>
-      {/* Hidden YouTube Iframe Audio Host */}
+      {/* Active 1px YouTube Iframe Anchor (prevents browser off-screen audio throttling) */}
       <div
         ref={containerRef}
         aria-hidden="true"
-        className="fixed -left-[10000px] top-0 w-10 h-10 opacity-0 pointer-events-none"
+        className="fixed bottom-0 right-0 w-[1px] h-[1px] opacity-[0.01] pointer-events-none z-[-1] overflow-hidden"
       />
 
-      {/* Top Header Navigation */}
+      {/* Top Header */}
       <HeaderBar
         onlineCount={onlineCount}
         isNight={isNight}
@@ -91,27 +89,27 @@ export function App() {
         onCheers={handleCheers}
       />
 
-      {/* Main Campus Scene Container */}
-      <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 pb-24 overflow-x-hidden">
-        {/* Interactive Guide Banner */}
+      {/* Main Responsive Campus Canvas Container */}
+      <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 md:p-6 pb-28 sm:pb-24 overflow-x-hidden">
+        {/* Interactive Guide Toast */}
         {showGuide && (
-          <div className="w-full max-w-xl mb-3 bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs px-4 py-2.5 rounded-2xl flex items-center justify-between gap-2 shadow-lg backdrop-blur-md animate-pop">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-amber-400 shrink-0" />
-              <span>
-                💡 <strong>ক্যাম্পাস টিপস:</strong> গিটারিস্টের উপর ক্লিক করে গান শুনুন, বন্ধুদের উপর ট্যাপ করে কথা শুনুন, চায়ের কাপে চিয়ার্স পাঠান!
+          <div className="w-full max-w-xl mb-2 sm:mb-3 bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs px-3.5 py-2 rounded-2xl flex items-center justify-between gap-2 shadow-lg backdrop-blur-md animate-pop">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={15} className="text-amber-400 shrink-0" />
+              <span className="truncate sm:whitespace-normal">
+                💡 <strong>ক্যাম্পাস টিপস:</strong> গিটারিস্ট, প্রতিটি আড্ডার বন্ধু, গার্ড মামা বা চায়ের কাপে ট্যাপ করে কথা শুনুন!
               </span>
             </div>
             <button
               onClick={() => setShowGuide(false)}
-              className="text-slate-400 hover:text-white p-1"
+              className="text-slate-400 hover:text-white p-1 text-sm font-bold shrink-0"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Central Interactive Campus Art Canvas */}
+        {/* The 19-Member Interactive Campus Scene */}
         <CampusScene
           isNight={isNight}
           isRain={isRain}
@@ -123,7 +121,7 @@ export function App() {
         />
       </main>
 
-      {/* Sticky Bottom Player Controls */}
+      {/* Responsive Bottom Player Controls */}
       <PlayerControls
         playerState={playerState}
         isNight={isNight}
@@ -140,15 +138,15 @@ export function App() {
       {/* Playlist Selector Modal */}
       <PlaylistModal
         isOpen={isPlaylistOpen}
-        activePlaylistId={playlistId}
-        onSelectPlaylist={(id) => {
-          changePlaylist(id);
+        activePlaylistId={currentPlaylist.id}
+        onSelectPlaylist={(p) => {
+          changePlaylist(p);
           play();
         }}
         onClose={() => setIsPlaylistOpen(false)}
       />
 
-      {/* Campus Confessions & Memories Board */}
+      {/* Campus Memories & Confession Board */}
       <ConfessionModal
         isOpen={isConfessionOpen}
         confessions={confessions}
@@ -161,4 +159,3 @@ export function App() {
 }
 
 export default App;
-
