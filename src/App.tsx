@@ -31,8 +31,8 @@ export function App() {
   } = useYouTubePlayer('PLOPZkRWRrUEk');
 
   const {
-    isAmbientOn,
-    toggleAmbient,
+    setRainAudio,
+    setNightAudio,
     playGuitarStrum,
     playTeaClink
   } = useAmbientAudio();
@@ -48,9 +48,14 @@ export function App() {
   const handleToggleRain = () => {
     const nextRain = !isRain;
     setIsRain(nextRain);
-    if ((nextRain && !isAmbientOn) || (!nextRain && isAmbientOn)) {
-      toggleAmbient();
-    }
+    setRainAudio(nextRain);
+  };
+
+  // Synchronize night state with night ambient crickets & breeze sound
+  const handleToggleNight = () => {
+    const nextNight = !isNight;
+    setIsNight(nextNight);
+    setNightAudio(nextNight);
   };
 
   const handleCheers = () => {
@@ -90,7 +95,7 @@ export function App() {
           isRain={isRain}
           isPlaying={playerState.isPlaying}
           currentMood={currentMood}
-          onToggleNight={() => setIsNight(prev => !prev)}
+          onToggleNight={handleToggleNight}
           onTogglePlay={togglePlay}
           onGuitarStrum={playGuitarStrum}
           onTeaClink={playTeaClink}
@@ -103,7 +108,7 @@ export function App() {
           isRain={isRain}
           currentMood={currentMood}
           onSelectMood={setCurrentMood}
-          onToggleNight={() => setIsNight(prev => !prev)}
+          onToggleNight={handleToggleNight}
           onToggleRain={handleToggleRain}
           onOpenConfessions={() => setIsConfessionOpen(true)}
           onCheers={handleCheers}
@@ -118,7 +123,7 @@ export function App() {
           onNext={nextTrack}
           onPrev={prevTrack}
           onVolumeChange={setVolume}
-          onToggleNight={() => setIsNight(prev => !prev)}
+          onToggleNight={handleToggleNight}
           onToggleRain={handleToggleRain}
           onOpenPlaylist={() => setIsPlaylistOpen(true)}
         />
