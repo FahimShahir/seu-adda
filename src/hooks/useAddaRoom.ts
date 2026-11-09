@@ -1032,6 +1032,10 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           .then((r) => (r.ok ? r.json() : null))
           .then((serverRoom) => {
             if (serverRoom && serverRoom.id) {
+              if (Array.isArray(serverRoom.messages)) {
+                const maxId = serverRoom.messages.reduce((max: number, m: any) => Math.max(max, m.dbId || 0), 0);
+                lastMsgDbIdRef.current = maxId;
+              }
               handleIncomingState(serverRoom);
             }
           })
