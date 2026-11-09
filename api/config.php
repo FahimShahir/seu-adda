@@ -4,6 +4,9 @@
  * InfinityFree Control Panel (vPanel) থেকে প্রাপ্ত MySQL তথ্য এখানে বসান:
  */
 
+// Universal UTC Timezone across all PHP date/time calculations
+date_default_timezone_set('UTC');
+
 // InfinityFree MySQL Credentials
 define('DB_HOST', getenv('DB_HOST') ?: 'sql104.infinityfree.com'); // আপনার InfinityFree MySQL Hostname
 define('DB_NAME', getenv('DB_NAME') ?: 'if0_43397321_seu_adda');    // আপনার Database Name

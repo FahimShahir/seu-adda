@@ -23,26 +23,24 @@ switch ($action) {
             jsonResponse(['error' => 'রুম আইডি বা হোস্টের তথ্য দেওয়া হয়নি'], 400);
         }
 
-        // Calculate 2-hour expiration
-        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-        if ($driver === 'sqlite') {
-            $stmt = $pdo->prepare("
-                INSERT INTO rooms (id, name, host_id, host_name, created_at, expires_at)
-                VALUES (:id, :name, :host_id, :host_name, datetime('now'), datetime('now', '+2 hours'))
-            ");
-        } else {
-            $stmt = $pdo->prepare("
-                INSERT INTO rooms (id, name, host_id, host_name, created_at, expires_at)
-                VALUES (:id, :name, :host_id, :host_name, NOW(), DATE_ADD(NOW(), INTERVAL 2 HOUR))
-            ");
-        }
+        // Calculate 2-hour expiration in explicit UTC
+        $nowUtc = time();
+        $createdUtc = gmdate('Y-m-d H:i:s', $nowUtc);
+        $expiresUtc = gmdate('Y-m-d H:i:s', $nowUtc + 2 * 3600);
+
+        $stmt = $pdo->prepare("
+            INSERT INTO rooms (id, name, host_id, host_name, created_at, expires_at)
+            VALUES (:id, :name, :host_id, :host_name, :created_at, :expires_at)
+        ");
 
         try {
             $stmt->execute([
                 ':id' => $roomId,
                 ':name' => $name,
                 ':host_id' => $hostId,
-                ':host_name' => $hostName
+                ':host_name' => $hostName,
+                ':created_at' => $createdUtc,
+                ':expires_at' => $expiresUtc
             ]);
         } catch (PDOException $e) {
             jsonResponse(['error' => 'এই রুম আইডি ইতিমধ্যে বিদ্যমান বা ত্রুটি হয়েছে'], 409);
@@ -50,8 +48,8 @@ switch ($action) {
 
         // Add Host as first participant
         $pStmt = $pdo->prepare("
-            INSERT INTO participants (id, room_id, name, dept, gender, character_id)
-            VALUES (:id, :room_id, :name, :dept, :gender, :character_id)
+            INSERT INTO participants (id, room_id, name, dept, gender, character_id, joined_at, last_seen)
+            VALUES (:id, :room_id, :name, :dept, :gender, :character_id, :joined_at, :last_seen)
         ");
         $pStmt->execute([
             ':id' => $hostId,
@@ -59,7 +57,9 @@ switch ($action) {
             ':name' => $hostName,
             ':dept' => $hostDept,
             ':gender' => $gender,
-            ':character_id' => $characterId
+            ':character_id' => $characterId,
+            ':joined_at' => $createdUtc,
+            ':last_seen' => $createdUtc
         ]);
 
         // Insert initial welcome message
@@ -99,10 +99,15 @@ switch ($action) {
         }
 
         $now = time();
-        $expiresTimestamp = strtotime($room['expires_at']);
+        $createdTimestamp = strtotime($room['created_at'] . ' UTC');
+        $expiresTimestamp = strtotime($room['expires_at'] . ' UTC');
+        if (!$expiresTimestamp || $expiresTimestamp <= $createdTimestamp) {
+            $expiresTimestamp = ($createdTimestamp ?: $now) + 7200;
+        }
         $remainingMs = max(0, ($expiresTimestamp - $now) * 1000);
 
-        if ($remainingMs <= 0) {
+        // Only delete room if genuinely past the 2-hour expiration (with a 60-second grace buffer)
+        if ($remainingMs <= 0 && ($now - $expiresTimestamp) > 60) {
             $pdo->prepare("DELETE FROM rooms WHERE id = :id")->execute([':id' => $roomId]);
             jsonResponse(['error' => 'রুমটির মেয়াদ শেষ হয়েছে'], 410);
         }
@@ -200,29 +205,30 @@ switch ($action) {
             ], 409);
         }
 
-        // Upsert participant
+        // Upsert participant with explicit UTC time
+        $nowUtc = gmdate('Y-m-d H:i:s');
         $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver === 'sqlite') {
             $uStmt = $pdo->prepare("
-                INSERT INTO participants (id, room_id, name, dept, gender, character_id, last_seen)
-                VALUES (:id, :room_id, :name, :dept, :gender, :character_id, datetime('now'))
+                INSERT INTO participants (id, room_id, name, dept, gender, character_id, joined_at, last_seen)
+                VALUES (:id, :room_id, :name, :dept, :gender, :character_id, :joined_at, :last_seen)
                 ON CONFLICT(id, room_id) DO UPDATE SET
                     name = excluded.name,
                     dept = excluded.dept,
                     gender = excluded.gender,
                     character_id = excluded.character_id,
-                    last_seen = datetime('now')
+                    last_seen = excluded.last_seen
             ");
         } else {
             $uStmt = $pdo->prepare("
-                INSERT INTO participants (id, room_id, name, dept, gender, character_id, last_seen)
-                VALUES (:id, :room_id, :name, :dept, :gender, :character_id, NOW())
+                INSERT INTO participants (id, room_id, name, dept, gender, character_id, joined_at, last_seen)
+                VALUES (:id, :room_id, :name, :dept, :gender, :character_id, :joined_at, :last_seen)
                 ON DUPLICATE KEY UPDATE
                     name = VALUES(name),
                     dept = VALUES(dept),
                     gender = VALUES(gender),
                     character_id = VALUES(character_id),
-                    last_seen = NOW()
+                    last_seen = VALUES(last_seen)
             ");
         }
         $uStmt->execute([
@@ -231,7 +237,9 @@ switch ($action) {
             ':name' => $name,
             ':dept' => $dept,
             ':gender' => $gender,
-            ':character_id' => $characterId
+            ':character_id' => $characterId,
+            ':joined_at' => $nowUtc,
+            ':last_seen' => $nowUtc
         ]);
 
         // Add system message if newly joined
@@ -290,26 +298,16 @@ switch ($action) {
         $stmt = $pdo->prepare("DELETE FROM participants WHERE room_id = :room_id AND id = :id");
         $stmt->execute([':room_id' => $roomId, ':id' => $userId]);
 
-        // Check remaining participants
-        $cntStmt = $pdo->prepare("SELECT COUNT(*) as cnt FROM participants WHERE room_id = :room_id");
-        $cntStmt->execute([':room_id' => $roomId]);
-        $cnt = (int)$cntStmt->fetchColumn();
-
-        if ($cnt === 0) {
-            // Delete room immediately if empty
-            $pdo->prepare("DELETE FROM rooms WHERE id = :id")->execute([':id' => $roomId]);
-        } else {
-            // Add leave system message
-            $mStmt = $pdo->prepare("
-                INSERT INTO messages (msg_uid, room_id, sender_id, sender_name, sender_dept, character_id, text, is_system)
-                VALUES (:uid, :room_id, 'system', 'SEU Adda সিস্টেম', '', '', :text, 1)
-            ");
-            $mStmt->execute([
-                ':uid' => 'sys_leave_' . time() . '_' . $userId,
-                ':room_id' => $roomId,
-                ':text' => "👋 {$userName} রুম ত্যাগ করেছেন।"
-            ]);
-        }
+        // Add leave system message (room stays active for its 2-hour TTL so users can rejoin)
+        $mStmt = $pdo->prepare("
+            INSERT INTO messages (msg_uid, room_id, sender_id, sender_name, sender_dept, character_id, text, is_system)
+            VALUES (:uid, :room_id, 'system', 'SEU Adda সিস্টেম', '', '', :text, 1)
+        ");
+        $mStmt->execute([
+            ':uid' => 'sys_leave_' . time() . '_' . $userId,
+            ':room_id' => $roomId,
+            ':text' => "👋 {$userName} রুম ত্যাগ করেছেন।"
+        ]);
 
         jsonResponse(['success' => true]);
         break;
@@ -361,13 +359,9 @@ switch ($action) {
         $userId = trim($input['participantId'] ?? '');
 
         if ($roomId && $userId) {
-            $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-            if ($driver === 'sqlite') {
-                $stmt = $pdo->prepare("UPDATE participants SET last_seen = datetime('now') WHERE room_id = :room_id AND id = :id");
-            } else {
-                $stmt = $pdo->prepare("UPDATE participants SET last_seen = NOW() WHERE room_id = :room_id AND id = :id");
-            }
-            $stmt->execute([':room_id' => $roomId, ':id' => $userId]);
+            $nowUtc = gmdate('Y-m-d H:i:s');
+            $stmt = $pdo->prepare("UPDATE participants SET last_seen = :now WHERE room_id = :room_id AND id = :id");
+            $stmt->execute([':now' => $nowUtc, ':room_id' => $roomId, ':id' => $userId]);
         }
 
         jsonResponse(['success' => true]);

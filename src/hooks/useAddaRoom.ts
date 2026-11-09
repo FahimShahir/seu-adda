@@ -381,13 +381,19 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       if (event.type === 'ROOM_DESTROYED') {
         if (current && current.id === event.roomId) {
-          setActiveRoom(null);
-          setActiveSpeechBubbles([]);
-          setRoomError('⚠️ রুমে আর কেউ না থাকায় বা মেয়াদ শেষ হওয়ায় রুমটি মুছে গেছে।');
-          try {
-            localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${event.roomId}`);
-            window.history.replaceState({}, '', window.location.pathname);
-          } catch (e) {}
+          const isHostClosing = current.hostId === event.senderId && event.payload?.reason === 'host_closed';
+          const isGenuinelyExpired = Date.now() >= current.expiresAt;
+          
+          // Only destroy room if host explicitly closed it or 2-hour TTL has expired
+          if (isHostClosing || isGenuinelyExpired) {
+            setActiveRoom(null);
+            setActiveSpeechBubbles([]);
+            setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়েছে বা হোস্ট রুমটি বন্ধ করেছেন।');
+            try {
+              localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${event.roomId}`);
+              window.history.replaceState({}, '', window.location.pathname);
+            } catch (e) {}
+          }
         }
         return;
       }
@@ -645,7 +651,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
         .catch(() => {});
     }, 1600);
 
-    // 2. Room State & Heartbeat Polling (every 5s to keep MySQL participant presence & countdown exact)
+    // 2. Room State & Heartbeat Polling (every 2s for real-time music sync & persistent MySQL presence)
     const roomPollInterval = setInterval(() => {
       // Send Heartbeat to MySQL
       fetch('./api/rooms.php?action=heartbeat', {
@@ -661,10 +667,17 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       fetch(`./api/rooms.php?action=get&room_id=${roomId}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((serverRoom) => {
-          if (!serverRoom || serverRoom.error) {
-            setActiveRoom(null);
-            setActiveSpeechBubbles([]);
-            setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়ে গেছে বা রুমটি বন্ধ হয়েছে।');
+          // If network blip or temporary InfinityFree drop, keep local state active
+          if (!serverRoom) return;
+
+          if (serverRoom.error) {
+            // Only kick out if the room's 2-hour TTL has genuinely expired locally
+            const localExpiry = activeRoomRef.current?.expiresAt || 0;
+            if (localExpiry > 0 && Date.now() >= localExpiry) {
+              setActiveRoom(null);
+              setActiveSpeechBubbles([]);
+              setRoomError('⌛ আড্ডা রুমের ২ ঘণ্টার মেয়াদ শেষ হয়েছে! রুমটি বন্ধ করা হয়েছে।');
+            }
             return;
           }
 
@@ -691,7 +704,7 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
           });
         })
         .catch(() => {});
-    }, 5000);
+    }, 2000);
 
     return () => {
       clearInterval(msgPollInterval);
@@ -785,16 +798,25 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
 
       updateRoomState((prev) => {
         if (!prev) return null;
-        const activeParticipants = prev.participants.filter(
-          (p) => p.id === me.id || now - p.lastSeen < 28000
+        // Keep active participants (3-minute threshold for mobile background resilience)
+        let activeParticipants = prev.participants.filter(
+          (p) => p.id === me.id || now - p.lastSeen < 180000
         );
 
-        if (activeParticipants.length === 0) {
-          try {
-            localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${prev.id}`);
-          } catch (_) {}
-          publishMqtt(`seu-adda/rooms/${prev.id}/state`, '', { retain: true, qos: 1 });
-          return null;
+        // Always ensure current user remains in participant list
+        if (!activeParticipants.some((p) => p.id === me.id)) {
+          activeParticipants = [
+            ...activeParticipants,
+            {
+              id: me.id,
+              name: me.name || 'বন্ধু',
+              dept: me.dept || 'CSE',
+              gender: me.gender,
+              characterId: me.characterId,
+              joinedAt: now,
+              lastSeen: now
+            }
+          ];
         }
 
         if (activeParticipants.length !== prev.participants.length) {
@@ -1161,40 +1183,24 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       }).catch(() => {});
     }
 
-    if (remaining.length === 0) {
-      try {
-        localStorage.removeItem(`${ROOM_STORAGE_PREFIX}${current.id}`);
-      } catch (e) {}
+    const updatedRoom: AddaRoom = {
+      ...current,
+      participants: remaining,
+      messages: [...current.messages, leaveMsg]
+    };
+    try {
+      localStorage.setItem(`${ROOM_STORAGE_PREFIX}${current.id}`, JSON.stringify(updatedRoom));
+    } catch (e) {}
 
-      publishMqtt(`seu-adda/rooms/${current.id}/state`, '', { retain: true, qos: 1 });
+    publishRetainedState(updatedRoom);
 
-      dispatchRoomEvent({
-        type: 'ROOM_DESTROYED',
-        roomId: current.id,
-        senderId: currentUser.id,
-        payload: { reason: 'empty' },
-        timestamp: now
-      });
-    } else {
-      const updatedRoom: AddaRoom = {
-        ...current,
-        participants: remaining,
-        messages: [...current.messages, leaveMsg]
-      };
-      try {
-        localStorage.setItem(`${ROOM_STORAGE_PREFIX}${current.id}`, JSON.stringify(updatedRoom));
-      } catch (e) {}
-
-      publishRetainedState(updatedRoom);
-
-      dispatchRoomEvent({
-        type: 'ROOM_LEAVE',
-        roomId: current.id,
-        senderId: currentUser.id,
-        payload: { participantId: currentUser.id, systemMessage: leaveMsg },
-        timestamp: now
-      });
-    }
+    dispatchRoomEvent({
+      type: 'ROOM_LEAVE',
+      roomId: current.id,
+      senderId: currentUser.id,
+      payload: { participantId: currentUser.id, systemMessage: leaveMsg },
+      timestamp: now
+    });
 
     setActiveRoom(null);
     setActiveSpeechBubbles([]);
@@ -1330,12 +1336,8 @@ export function useAddaRoom(onRoomSongChange?: (source: string) => void) {
       if (updatedRoomState) {
         publishRetainedState(updatedRoomState);
       }
-
-      if (onRoomSongChange) {
-        onRoomSongChange(source);
-      }
     },
-    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, isPhpBackend, onRoomSongChange, publishRetainedState, updateRoomState]
+    [currentUser.characterId, currentUser.id, currentUser.name, dispatchRoomEvent, isPhpBackend, publishRetainedState, updateRoomState]
   );
 
   return {

@@ -218,25 +218,23 @@ export function useYouTubePlayer(
                 });
               }
 
-              setTimeout(() => {
-                if (isCancelled) return;
-                try {
-                  const playlist = event.target.getPlaylist();
-                  const total = Array.isArray(playlist) ? playlist.length : 1;
-                  setPlayerState(prev => ({
-                    ...prev,
-                    isReady: true,
-                    totalTracks: total,
-                    statusText: prev.statusText.includes('লোড') ? prev.statusText : 'রেডিও প্রস্তুত — গান শুনুন 🎶'
-                  }));
+              // Execute ready state immediately with zero artificial delay
+              try {
+                const playlist = event.target.getPlaylist();
+                const total = Array.isArray(playlist) ? playlist.length : 1;
+                setPlayerState(prev => ({
+                  ...prev,
+                  isReady: true,
+                  totalTracks: total,
+                  statusText: prev.statusText.includes('লোড') ? prev.statusText : 'রেডিও প্রস্তুত — গান শুনুন 🎶'
+                }));
 
-                  if (pendingPlayRef.current || isPlayingRef.current) {
-                    pendingPlayRef.current = false;
-                    event.target.unMute();
-                    event.target.playVideo();
-                  }
-                } catch (e) {}
-              }, 1200);
+                if (pendingPlayRef.current || isPlayingRef.current) {
+                  pendingPlayRef.current = false;
+                  event.target.unMute();
+                  event.target.playVideo();
+                }
+              } catch (e) {}
             } catch (err) {
               console.warn('Error onReady:', err);
             }
@@ -284,6 +282,21 @@ export function useYouTubePlayer(
                 ...prev,
                 statusText: 'গান লোড হচ্ছে...'
               }));
+              // Instant sync on buffer start: broadcast videoId immediately to room peers
+              try {
+                const videoData = event.target.getVideoData();
+                const vId = videoData?.video_id || '';
+                const vTitle = videoData?.title || '';
+                const vAuthor = videoData?.author || '';
+                if (vId && vId !== lastReportedVideoIdRef.current) {
+                  lastReportedVideoIdRef.current = vId;
+                  onTrackChangeRef.current?.({
+                    id: vId,
+                    title: vTitle || 'বাংলা ক্যাম্পাস গান',
+                    author: vAuthor || 'SEU Adda Radio'
+                  });
+                }
+              } catch (_) {}
             } else if (event.data === 5) {
               // Cued
               try {

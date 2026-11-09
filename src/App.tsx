@@ -295,14 +295,14 @@ export function App() {
         onSelectPlaylist={(id) => {
           changePlaylist(id);
           play();
-          if (activeRoom) {
+          if (activeRoomRef.current) {
             const pl = CAMPUS_PLAYLISTS.find((p) => p.id === id);
             setRoomSong(pl?.name || 'ক্যাম্পাস প্লেলিস্ট', 'SEU Adda রেডিও', id);
           }
         }}
         onPlayCustomSource={(source) => {
           const success = playCustomSource(source);
-          if (success && activeRoom) {
+          if (success && activeRoomRef.current) {
             setRoomSong('ক্যাম্পাস পছন্দের গান', currentUser.name || 'বন্ধু', source);
           }
           return Boolean(success);

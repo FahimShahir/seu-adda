@@ -22,6 +22,8 @@ function getDbConnection(): PDO {
             PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
         ];
         $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        // Force UTC timezone in MySQL session to match PHP date_default_timezone_set('UTC')
+        $pdo->exec("SET time_zone = '+00:00'");
     } catch (PDOException $e) {
         // 2. Seamless local fallback: If remote/local MySQL is unavailable during local testing,
         // use local SQLite file so local preview works out-of-the-box!
@@ -48,12 +50,12 @@ function purgeExpiredRooms(PDO $pdo): void {
         $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver === 'sqlite') {
             $pdo->query("DELETE FROM rooms WHERE datetime(expires_at) <= datetime('now')");
-            // Clean participants inactive for > 30 seconds
-            $pdo->query("DELETE FROM participants WHERE datetime(last_seen) <= datetime('now', '-30 seconds')");
+            // Clean participants inactive for > 5 minutes (prevents false kickouts during phone lock / tab switches)
+            $pdo->query("DELETE FROM participants WHERE datetime(last_seen) <= datetime('now', '-300 seconds')");
         } else {
             $pdo->query("DELETE FROM rooms WHERE expires_at <= NOW()");
-            // Clean participants inactive for > 30 seconds
-            $pdo->query("DELETE FROM participants WHERE last_seen <= DATE_SUB(NOW(), INTERVAL 30 SECOND)");
+            // Clean participants inactive for > 5 minutes
+            $pdo->query("DELETE FROM participants WHERE last_seen <= DATE_SUB(NOW(), INTERVAL 300 SECOND)");
         }
     } catch (Exception $e) {
         // Silent catch for resilience
